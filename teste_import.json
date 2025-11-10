@@ -1,0 +1,109 @@
+{
+  "statuses": [
+    {
+      "id": "open",
+      "name": "Aberto - Modificado",
+      "color": "#ff0000",
+      "icon": "Circle",
+      "order": 1,
+      "isDefault": true,
+      "isActive": true
+    },
+    {
+      "id": "in-progress",
+      "name": "Em Andamento",
+      "color": "#3b82f6",
+      "icon": "Clock",
+      "order": 2,
+      "isDefault": true,
+      "isActive": true
+    },
+    {
+      "id": "resolved",
+      "name": "Resolvido",
+      "color": "#10b981",
+      "icon": "CheckCircle",
+      "order": 3,
+      "isDefault": true,
+      "isActive": true
+    },
+    {
+      "id": "closed",
+      "name": "Fechado",
+      "color": "#6b7280",
+      "icon": "XCircle",
+      "order": 4,
+      "isDefault": true,
+      "isActive": true
+    }
+  ],
+  "formFields": [
+    {
+      "id": "title",
+      "name": "Título",
+      "type": "text",
+      "required": true,
+      "order": 1,
+      "isActive": true
+    },
+    {
+      "id": "description",
+      "name": "Descrição",
+      "type": "textarea",
+      "required": true,
+      "order": 2,
+      "isActive": true
+    }
+  ],
+  "kanban": {
+    "columns": [
+      {
+        "id": "todo",
+        "name": "A Fazer",
+        "statusIds": ["open"],
+        "wipLimit": 10,
+        "order": 1,
+        "isActive": true
+      },
+      {
+        "id": "doing",
+        "name": "Fazendo",
+        "statusIds": ["in-progress"],
+        "wipLimit": 5,
+        "order": 2,
+        "isActive": true
+      },
+      {
+        "id": "done",
+        "name": "Concluído",
+        "statusIds": ["resolved", "closed"],
+        "wipLimit": null,
+        "order": 3,
+        "isActive": true
+      }
+    ],
+    "cardFields": ["title", "description", "priority", "createdAt"],
+    "showAvatars": true,
+    "showLabels": true
+  },
+  "accessControl": {
+    "permissions": [
+      {
+        "id": "view_tickets",
+        "name": "Visualizar Chamados",
+        "description": "Ver lista de chamados",
+        "adminOnly": false
+      },
+      {
+        "id": "create_tickets",
+        "name": "Criar Chamados",
+        "description": "Abrir novos chamados",
+        "adminOnly": false
+      }
+    ],
+    "changeLog": []
+  },
+  "history": [],
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}

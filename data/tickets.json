@@ -1,0 +1,28 @@
+[
+  {
+    "id": "3d833729-bcce-489d-80da-e2f13085833c",
+    "title": "teste",
+    "description": "asdasdasdasdasd",
+    "category": "Software",
+    "priority": "Low",
+    "status": "In Progress",
+    "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
+    "assigned_to_id": null,
+    "created_at": "2025-11-07T12:59:23.555Z",
+    "updated_at": "2025-11-07T12:59:32.223Z",
+    "resolved_at": null
+  },
+  {
+    "id": "b9022792-cb5e-4fbc-9b5e-df0bf597e544",
+    "title": "ajsdkjasdjaksd",
+    "description": "lkasdlkasjdkasdlasd\n\n---\nSolicitante: asdasdasd <123123123asd@gmail.com>",
+    "category": "Email",
+    "priority": "Low",
+    "status": "Open",
+    "requester_id": "public-submission",
+    "assigned_to_id": null,
+    "created_at": "2025-11-07T18:31:02.936Z",
+    "updated_at": "2025-11-07T18:31:02.936Z",
+    "resolved_at": null
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "22de4a88-d112-4c89-9895-ca158c19edaa",
+    "email": "admin@empresa.com",
+    "name": "Administrador",
+    "role": "admin",
+    "passwordHash": "$2a$10$XcN8cAajr1LLLnRzEjTCBO9zjYm5HYXfehYViP24OZz5ek0PBnSZ6",
+    "created_at": "2025-11-07T12:45:08.118Z"
+  }
+]
