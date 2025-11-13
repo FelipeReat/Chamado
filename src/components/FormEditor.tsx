@@ -40,6 +40,10 @@ interface FormField {
   required: boolean
   order: number
   isActive: boolean
+  visiblePublic?: boolean
+  visibleInternal?: boolean
+  readonlyPublic?: boolean
+  readonlyInternal?: boolean
   validation?: {
     minLength?: number
     maxLength?: number
@@ -96,9 +100,23 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
     try {
       setLoading(true)
       const response = await apiFetch('/settings')
-      if (response.data) {
-        setFields(response.data.formFields || [])
-      }
+      const saved = ((response as any)?.formFields || []) as FormField[]
+      const builtins: FormField[] = [
+        { id: 'builtin:name', name: 'name', label: 'Seu nome', type: 'text', required: true, order: 0, isActive: true, visiblePublic: true, visibleInternal: false, readonlyPublic: false, readonlyInternal: true },
+        { id: 'builtin:email', name: 'email', label: 'Seu email', type: 'email', required: true, order: 0, isActive: true, visiblePublic: true, visibleInternal: false, readonlyPublic: false, readonlyInternal: true },
+        { id: 'builtin:title', name: 'title', label: 'Título do Chamado', type: 'text', required: true, order: 1, isActive: true, visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
+        { id: 'builtin:description', name: 'description', label: 'Descrição Detalhada', type: 'textarea', required: true, order: 2, isActive: true, visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
+        { id: 'builtin:category', name: 'category', label: 'Categoria', type: 'select', required: true, order: 3, isActive: true, options: ['Hardware','Software','Rede','Email','Sistema','Outro'], visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
+        { id: 'builtin:priority', name: 'priority', label: 'Prioridade', type: 'select', required: true, order: 4, isActive: true, options: ['Low','Medium','High','Urgent'], visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
+        { id: 'builtin:assigned_to_id', name: 'assigned_to_id', label: 'Atribuir a', type: 'select', required: false, order: 5, isActive: true, visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
+      ]
+      const merged: FormField[] = builtins.map(b => {
+        const found = saved.find(f => f.name === b.name)
+        return found ? found as any : b
+      }).concat(saved.filter(f => !builtins.some(b => b.name === f.name)))
+      const uniqueByName: Record<string, FormField> = {}
+      merged.forEach(f => { uniqueByName[f.name] = f })
+      setFields(Object.values(uniqueByName))
     } catch (error) {
       console.error('Erro ao buscar campos:', error)
     } finally {
@@ -108,22 +126,30 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
 
   const handleCreateField = async (fieldData: Partial<FormField>) => {
     try {
-      const response = await apiFetch('/settings/form-fields', {
-        method: 'POST',
-        body: JSON.stringify({
-          user,
-          field: {
-            ...fieldData,
-            order: fields.length + 1
-          }
+      const existing = fields.find(f => f.name === fieldData.name)
+      let response
+      if (existing && !String(existing.id).startsWith('builtin:')) {
+        response = await apiFetch(`/settings/form-fields/${existing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ user, field: fieldData })
         })
-      })
-      
-      if (response.data) {
-        setFields([...fields, response.data])
-        setIsCreating(false)
-        onUpdate()
+        setFields(fields.map(f => f.name === existing.name ? (response as any) : f))
+      } else {
+        response = await apiFetch('/settings/form-fields', {
+          method: 'POST',
+          body: JSON.stringify({
+            user,
+            field: {
+              ...fieldData,
+              order: fields.length + 1
+            }
+          })
+        })
+        setFields([...fields, response as any])
       }
+      setIsCreating(false)
+      onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao criar campo:', error)
     }
@@ -131,19 +157,33 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
 
   const handleUpdateField = async (id: string, fieldData: Partial<FormField>) => {
     try {
-      const response = await apiFetch(`/settings/form-fields/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          user,
-          field: fieldData
+      let response: any
+      if (id.startsWith('builtin:')) {
+        const targetName = id.split(':')[1]
+        const existing = fields.find(f => f.name === targetName && !String(f.id).startsWith('builtin:'))
+        if (existing) {
+          response = await apiFetch(`/settings/form-fields/${existing.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ user, field: fieldData })
+          })
+          setFields(fields.map(f => f.name === targetName ? (response as any) : f))
+        } else {
+          response = await apiFetch(`/settings/form-fields`, {
+            method: 'POST',
+            body: JSON.stringify({ user, field: { name: targetName, ...fieldData } })
+          })
+          setFields(fields.map(f => f.name === targetName ? (response as any) : f))
+        }
+      } else {
+        response = await apiFetch(`/settings/form-fields/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ user, field: fieldData })
         })
-      })
-      
-      if (response.data) {
-        setFields(fields.map(f => f.id === id ? response.data : f))
-        setEditingField(null)
-        onUpdate()
+        setFields(fields.map(f => f.id === id ? (response as any) : f))
       }
+      setEditingField(null)
+      onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao atualizar campo:', error)
     }
@@ -153,13 +193,27 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
     if (!confirm('Tem certeza que deseja excluir este campo?')) return
     
     try {
-      await apiFetch(`/settings/form-fields/${id}`, {
+      const target = fields.find(f => f.id === id)
+      const isBuiltin = String(id).startsWith('builtin:')
+      let deleteId = id
+      if (isBuiltin) {
+        const name = String(id).split(':')[1]
+        const existing = fields.find(f => f.name === name && !String(f.id).startsWith('builtin:'))
+        if (!existing) {
+          alert('Campos base não podem ser excluídos. Edite o campo ou desative-o nas Configurações.')
+          return
+        }
+        deleteId = existing.id
+      }
+
+      await apiFetch(`/settings/form-fields/${deleteId}`, {
         method: 'DELETE',
         body: JSON.stringify({ user })
       })
       
-      setFields(fields.filter(f => f.id !== id))
+      setFields(fields.filter(f => f.id !== deleteId))
       onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao excluir campo:', error)
     }
@@ -210,6 +264,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
         body: JSON.stringify({ user, fieldIds })
       })
       onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao reordenar campos:', error)
       // Reverter em caso de erro
@@ -407,7 +462,11 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
       helpText: field?.helpText || '',
       options: field?.options || [],
       validation: field?.validation || {},
-      defaultValue: field?.defaultValue || ''
+      defaultValue: field?.defaultValue || '',
+      visiblePublic: field?.visiblePublic ?? true,
+      visibleInternal: field?.visibleInternal ?? true,
+      readonlyPublic: field?.readonlyPublic ?? false,
+      readonlyInternal: field?.readonlyInternal ?? false,
     })
 
     const [newOption, setNewOption] = useState('')
@@ -579,6 +638,55 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Campo Ativo
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="md:col-span-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.visibleInternal}
+                  onChange={(e) => setFormData({ ...formData, visibleInternal: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Mostrar no Sistema
+                </span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.visiblePublic}
+                  onChange={(e) => setFormData({ ...formData, visiblePublic: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Mostrar no Público
+                </span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.readonlyInternal}
+                  onChange={(e) => setFormData({ ...formData, readonlyInternal: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Somente leitura no Sistema
+                </span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.readonlyPublic}
+                  onChange={(e) => setFormData({ ...formData, readonlyPublic: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Somente leitura no Público
                 </span>
               </label>
             </div>

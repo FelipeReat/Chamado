@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 
 export default function UserManagement() {
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, isAdmin } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -57,6 +57,11 @@ export default function UserManagement() {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!isAdmin) {
+      toast.error('Apenas administradores podem criar usuários')
+      return
+    }
+
     try {
       await apiFetch('/users', {
         method: 'POST',
@@ -82,6 +87,10 @@ export default function UserManagement() {
     e.preventDefault()
     
     if (!editingUser) return
+    if (!isAdmin) {
+      toast.error('Apenas administradores podem editar usuários')
+      return
+    }
 
     try {
       await apiFetch(`/users/${editingUser.id}`, {
@@ -100,6 +109,10 @@ export default function UserManagement() {
   }
 
   const handleDeleteUser = async (userId: string) => {
+    if (!isAdmin) {
+      toast.error('Apenas administradores podem excluir usuários')
+      return
+    }
     if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
       return
     }
@@ -110,11 +123,10 @@ export default function UserManagement() {
     }
 
     try {
-      // Not implemented: delete user (we keep for now)
-      toast.info('Exclusão de usuário ainda não implementada no modo local')
-
-      toast.success('Usuário excluído com sucesso!')
-      fetchUsers()
+      const resp = await apiFetch(`/users/${userId}`, { method: 'DELETE' })
+      const unassigned = (resp.meta?.tickets_unassigned as number) || 0
+      toast.success(`Usuário excluído com sucesso! ${unassigned ? `(${unassigned} chamados desatribuídos)` : ''}`)
+      await fetchUsers()
     } catch (error) {
       console.error('Error deleting user:', error)
       toast.error('Erro ao excluir usuário')
@@ -122,6 +134,10 @@ export default function UserManagement() {
   }
 
   const handleResetPassword = async (userId: string, email: string) => {
+    if (!isAdmin) {
+      toast.error('Apenas administradores podem redefinir senhas')
+      return
+    }
     try {
       await sendPasswordResetEmail(email, `${window.location.origin}/reset-password`) // placeholder
       
@@ -134,7 +150,7 @@ export default function UserManagement() {
 
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.user_metadata?.name as string)?.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const openModal = (type: 'add' | 'edit', user?: User) => {
@@ -145,8 +161,8 @@ export default function UserManagement() {
       setFormData({
         email: user.email,
         password: '',
-        full_name: (user.user_metadata?.name as string) || '',
-        role: ((user.user_metadata?.role as string) || 'user') as 'user' | 'technician' | 'admin'
+        full_name: (user.name as string) || '',
+        role: ((user.role as string) || 'user') as 'user' | 'technician' | 'admin'
       })
       setEditingUser(user)
     }
@@ -176,15 +192,17 @@ export default function UserManagement() {
             Gerencie os usuários do sistema e suas permissões
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            onClick={() => openModal('add')}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Adicionar Usuário
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="mt-4 sm:mt-0">
+            <button
+              onClick={() => openModal('add')}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Adicionar Usuário
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -244,7 +262,7 @@ export default function UserManagement() {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {(user.user_metadata?.name as string) || user.email}
+                          {user.name || user.email}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {user.email}
@@ -254,12 +272,12 @@ export default function UserManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      (user.user_metadata?.role as string) === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                      (user.user_metadata?.role as string) === 'technician' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                      (user.role as string) === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                      (user.role as string) === 'technician' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
                       'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
                     }`}>
-                      {(user.user_metadata?.role as string) === 'admin' ? 'Administrador' :
-                       (user.user_metadata?.role as string) === 'technician' ? 'Técnico' : 'Usuário'}
+                      {(user.role as string) === 'admin' ? 'Administrador' :
+                       (user.role as string) === 'technician' ? 'Técnico' : 'Usuário'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -275,24 +293,26 @@ export default function UserManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => openModal('edit', user)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                        onClick={() => isAdmin && openModal('edit', user)}
+                        className={`text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Editar usuário"
+                        disabled={!isAdmin}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleResetPassword(user.id, user.email)}
-                        className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                        onClick={() => isAdmin && handleResetPassword(user.id, user.email)}
+                        className={`text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Redefinir senha"
+                        disabled={!isAdmin}
                       >
                         <Key className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        onClick={() => isAdmin && handleDeleteUser(user.id)}
+                        className={`text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="Excluir usuário"
-                        disabled={user.id === currentUser?.id}
+                        disabled={!isAdmin || user.id === currentUser?.id}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -313,13 +333,15 @@ export default function UserManagement() {
             <p className="text-gray-500 dark:text-gray-400 mb-4">
               Tente ajustar sua busca ou adicione um novo usuário.
             </p>
-            <button
-              onClick={() => openModal('add')}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Adicionar Primeiro Usuário
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => openModal('add')}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Adicionar Primeiro Usuário
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -331,18 +353,18 @@ export default function UserManagement() {
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  {(user.user_metadata?.name as string) || user.email}
+                  {user.name || user.email}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
               </div>
               <div className="flex flex-col items-end space-y-1">
                 <span className={`px-2 py-1 text-xs rounded-full ${
-                    (user.user_metadata?.role as string) === 'admin' ? 'bg-red-100 text-red-800' :
-                    (user.user_metadata?.role as string) === 'technician' ? 'bg-yellow-100 text-yellow-800' :
+                    (user.role as string) === 'admin' ? 'bg-red-100 text-red-800' :
+                    (user.role as string) === 'technician' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
                   }`}>
-                    {(user.user_metadata?.role as string) === 'admin' ? 'Administrador' :
-                     (user.user_metadata?.role as string) === 'technician' ? 'Técnico' : 'Usuário'}
+                    {(user.role as string) === 'admin' ? 'Administrador' :
+                     (user.role as string) === 'technician' ? 'Técnico' : 'Usuário'}
                   </span>
                 <span className={`px-2 py-1 text-xs rounded-full ${
                       (user as any).email_confirmed_at ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
@@ -358,20 +380,23 @@ export default function UserManagement() {
             
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => openModal('edit', user)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                onClick={() => isAdmin && openModal('edit', user)}
+                className={`inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isAdmin}
               >
                 Editar
               </button>
               <button
-                onClick={() => handleResetPassword(user.id, user.email)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-green-800 rounded-md text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 hover:bg-green-100"
+                onClick={() => isAdmin && handleResetPassword(user.id, user.email)}
+                className={`inline-flex items-center px-3 py-2 border border-gray-300 dark:border-green-800 rounded-md text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isAdmin}
               >
                 Redefinir Senha
               </button>
               <button
-                onClick={() => handleDeleteUser(user.id)}
-                className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-800 rounded-md text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100"
+                onClick={() => isAdmin && handleDeleteUser(user.id)}
+                className={`inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-800 rounded-md text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isAdmin || user.id === currentUser?.id}
               >
                 Excluir
               </button>

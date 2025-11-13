@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import jwt from 'jsonwebtoken'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
@@ -9,6 +10,29 @@ const __dirname = dirname(__filename)
 
 const router = Router()
 const settingsPath = join(__dirname, '../../data/settings.json')
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret'
+
+function requireAuth(req, res, next) {
+  const auth = req.headers.authorization || ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+  if (!token) return res.status(401).json({ success: false, error: 'Não autenticado' })
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as any
+    ;(req as any).user = payload
+    next()
+  } catch {
+    return res.status(401).json({ success: false, error: 'Token inválido' })
+  }
+}
+
+function requireAdmin(req, res, next) {
+  const user = (req as any).user || {}
+  if (user.role !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Acesso negado: apenas administradores' })
+  }
+  next()
+}
 
 // Função para ler configurações
 async function readSettings() {
@@ -54,7 +78,7 @@ function addToHistory(settings: any, action: string, user: string, details: any 
 }
 
 // GET /api/settings - Obter todas as configurações
-router.get('/settings', async (req, res) => {
+router.get('/settings', requireAuth, async (req, res) => {
   try {
     const settings = await readSettings()
     if (!settings) {
@@ -69,7 +93,7 @@ router.get('/settings', async (req, res) => {
 })
 
 // PUT /api/settings - Atualizar configurações completas
-router.put('/settings', async (req, res) => {
+router.put('/settings', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user } = req.body
     const currentSettings = await readSettings()
@@ -98,7 +122,7 @@ router.put('/settings', async (req, res) => {
 })
 
 // POST /api/settings/statuses - Criar novo status
-router.post('/settings/statuses', async (req, res) => {
+router.post('/settings/statuses', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user, status } = req.body
     const settings = await readSettings()
@@ -136,7 +160,7 @@ router.post('/settings/statuses', async (req, res) => {
 })
 
 // PUT /api/settings/statuses/:id - Atualizar status
-router.put('/settings/statuses/:id', async (req, res) => {
+router.put('/settings/statuses/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user, status } = req.body
     const { id } = req.params
@@ -180,7 +204,7 @@ router.put('/settings/statuses/:id', async (req, res) => {
 })
 
 // DELETE /api/settings/statuses/:id - Remover status
-router.delete('/settings/statuses/:id', async (req, res) => {
+router.delete('/settings/statuses/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user } = req.body
     const { id } = req.params
@@ -221,7 +245,7 @@ router.delete('/settings/statuses/:id', async (req, res) => {
 })
 
 // POST /api/settings/statuses/reorder - Reordenar status
-router.post('/settings/statuses/reorder', async (req, res) => {
+router.post('/settings/statuses/reorder', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user, statusIds } = req.body
     const settings = await readSettings()
@@ -254,8 +278,331 @@ router.post('/settings/statuses/reorder', async (req, res) => {
   }
 })
 
+// -------------------------
+// Form Fields (Campos do Formulário)
+// -------------------------
+
+// POST /api/settings/form-fields - Criar novo campo de formulário
+router.post('/settings/form-fields', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, field } = req.body
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const newField = {
+      id: Date.now().toString(),
+      name: field?.name || field?.label || 'Novo Campo',
+      label: field?.label || field?.name || 'Novo Campo',
+      type: field?.type || 'text',
+      required: !!field?.required,
+      order: field?.order || (settings.formFields?.length || 0) + 1,
+      isActive: field?.isActive ?? true,
+      validation: field?.validation || {},
+      options: field?.options || [],
+      placeholder: field?.placeholder || '',
+      helpText: field?.helpText || '',
+      defaultValue: field?.defaultValue ?? null
+    }
+
+    settings.formFields = settings.formFields || []
+    settings.formFields.push(newField)
+
+    addToHistory(settings, 'form_field_created', user?.email || 'sistema', {
+      fieldId: newField.id,
+      fieldName: newField.name
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json(newField)
+  } catch (error) {
+    console.error('Erro ao criar campo:', error)
+    res.status(500).json({ error: 'Erro ao criar campo' })
+  }
+})
+
+// PUT /api/settings/form-fields/:id - Atualizar campo existente
+router.put('/settings/form-fields/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, field } = req.body
+    const { id } = req.params
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const idx = (settings.formFields || []).findIndex((f: any) => f.id === id)
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Campo não encontrado' })
+    }
+
+    settings.formFields[idx] = {
+      ...settings.formFields[idx],
+      ...field
+    }
+
+    addToHistory(settings, 'form_field_updated', user?.email || 'sistema', {
+      fieldId: id,
+      fieldName: settings.formFields[idx].name
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json(settings.formFields[idx])
+  } catch (error) {
+    console.error('Erro ao atualizar campo:', error)
+    res.status(500).json({ error: 'Erro ao atualizar campo' })
+  }
+})
+
+// DELETE /api/settings/form-fields/:id - Remover campo
+router.delete('/settings/form-fields/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user } = req.body
+    const { id } = req.params
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const idx = (settings.formFields || []).findIndex((f: any) => f.id === id)
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Campo não encontrado' })
+    }
+
+    const removed = settings.formFields.splice(idx, 1)[0]
+
+    addToHistory(settings, 'form_field_deleted', user?.email || 'sistema', {
+      fieldId: id,
+      fieldName: removed?.name
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json({ message: 'Campo removido com sucesso' })
+  } catch (error) {
+    console.error('Erro ao remover campo:', error)
+    res.status(500).json({ error: 'Erro ao remover campo' })
+  }
+})
+
+// POST /api/settings/form-fields/reorder - Reordenar campos
+router.post('/settings/form-fields/reorder', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, fieldIds } = req.body
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const reordered = fieldIds.map((id: string) =>
+      (settings.formFields || []).find((f: any) => f.id === id)
+    ).filter(Boolean)
+
+    settings.formFields = reordered
+
+    // Atualizar ordem sequencial
+    settings.formFields = (settings.formFields || []).map((f: any, index: number) => ({
+      ...f,
+      order: index + 1
+    }))
+
+    addToHistory(settings, 'form_fields_reordered', user?.email || 'sistema', {
+      newOrder: fieldIds
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json(settings.formFields)
+  } catch (error) {
+    console.error('Erro ao reordenar campos:', error)
+    res.status(500).json({ error: 'Erro ao reordenar campos' })
+  }
+})
+
+// -------------------------
+// Kanban Columns (Colunas do Kanban)
+// -------------------------
+
+// POST /api/settings/kanban-columns - Criar nova coluna Kanban
+router.post('/settings/kanban-columns', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, column } = req.body
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const newColumn = {
+      id: Date.now().toString(),
+      name: column?.name || 'Nova Coluna',
+      statusIds: Array.isArray(column?.statusIds) ? column.statusIds : [],
+      wipLimit: typeof column?.wipLimit === 'number' ? column.wipLimit : 0,
+      showAssignee: column?.showAssignee ?? true,
+      showDueDate: column?.showDueDate ?? true,
+      showPriority: column?.showPriority ?? true,
+      showTags: column?.showTags ?? false,
+      showDescription: column?.showDescription ?? true,
+      showCreatedDate: column?.showCreatedDate ?? false,
+      showStatus: column?.showStatus ?? false,
+      color: column?.color || '#fbbf24',
+      icon: typeof column?.icon === 'string' ? column.icon : 'Clock',
+      order: column?.order || (settings.kanbanColumns?.length || 0) + 1,
+      isActive: column?.isActive ?? true
+    }
+
+    settings.kanbanColumns = settings.kanbanColumns || []
+    settings.kanbanColumns.push(newColumn)
+
+    addToHistory(settings, 'kanban_column_created', user?.email || 'sistema', {
+      columnId: newColumn.id,
+      columnName: newColumn.name
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json(newColumn)
+  } catch (error) {
+    console.error('Erro ao criar coluna:', error)
+    res.status(500).json({ error: 'Erro ao criar coluna' })
+  }
+})
+
+// PUT /api/settings/kanban-columns/:id - Atualizar coluna existente
+router.put('/settings/kanban-columns/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, column } = req.body
+    const { id } = req.params
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const idx = (settings.kanbanColumns || []).findIndex((c: any) => c.id === id)
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Coluna não encontrada' })
+    }
+
+    settings.kanbanColumns[idx] = {
+      ...settings.kanbanColumns[idx],
+      ...column
+    }
+
+    addToHistory(settings, 'kanban_column_updated', user?.email || 'sistema', {
+      columnId: id,
+      columnName: settings.kanbanColumns[idx].name
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json(settings.kanbanColumns[idx])
+  } catch (error) {
+    console.error('Erro ao atualizar coluna:', error)
+    res.status(500).json({ error: 'Erro ao atualizar coluna' })
+  }
+})
+
+// DELETE /api/settings/kanban-columns/:id - Remover coluna
+router.delete('/settings/kanban-columns/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user } = req.body
+    const { id } = req.params
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const idx = (settings.kanbanColumns || []).findIndex((c: any) => c.id === id)
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Coluna não encontrada' })
+    }
+
+    const removed = settings.kanbanColumns.splice(idx, 1)[0]
+
+    addToHistory(settings, 'kanban_column_deleted', user?.email || 'sistema', {
+      columnId: id,
+      columnName: removed?.name
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json({ message: 'Coluna removida com sucesso' })
+  } catch (error) {
+    console.error('Erro ao remover coluna:', error)
+    res.status(500).json({ error: 'Erro ao remover coluna' })
+  }
+})
+
+// POST /api/settings/kanban-columns/reorder - Reordenar colunas
+router.post('/settings/kanban-columns/reorder', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, columnIds } = req.body
+    const settings = await readSettings()
+
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+
+    const reordered = columnIds.map((id: string) =>
+      (settings.kanbanColumns || []).find((c: any) => c.id === id)
+    ).filter(Boolean)
+
+    settings.kanbanColumns = reordered
+
+    // Atualizar ordem sequencial
+    settings.kanbanColumns = (settings.kanbanColumns || []).map((c: any, index: number) => ({
+      ...c,
+      order: index + 1
+    }))
+
+    addToHistory(settings, 'kanban_columns_reordered', user?.email || 'sistema', {
+      newOrder: columnIds
+    })
+
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar configurações' })
+    }
+
+    res.json(settings.kanbanColumns)
+  } catch (error) {
+    console.error('Erro ao reordenar colunas:', error)
+    res.status(500).json({ error: 'Erro ao reordenar colunas' })
+  }
+})
+
 // POST /api/settings/reset - Redefinir configurações padrão
-router.post('/settings/reset', async (req, res) => {
+router.post('/settings/reset', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user } = req.body
     const settings = await readSettings()
@@ -390,7 +737,7 @@ router.post('/settings/reset', async (req, res) => {
 })
 
 // Exportar configurações
-router.get('/settings/export', async (req, res) => {
+router.get('/settings/export', requireAuth, requireAdmin, async (req, res) => {
   try {
     const settings = await readSettings()
     if (!settings) {
@@ -404,7 +751,7 @@ router.get('/settings/export', async (req, res) => {
 })
 
 // Importar configurações
-router.post('/settings/import', async (req, res) => {
+router.post('/settings/import', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { user, settings } = req.body
     

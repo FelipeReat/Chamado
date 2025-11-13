@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Shield, User, Key, History, RefreshCw } from 'lucide-react'
+import { Shield, Key, RefreshCw } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { apiFetch } from '../lib/api'
 
@@ -57,7 +57,7 @@ export default function AccessControl() {
     const newLog: ChangeLog = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
-      user: user?.user_metadata?.name || user?.email || 'Sistema',
+      user: user?.name || user?.email || 'Sistema',
       action,
       details
     }
@@ -187,39 +187,6 @@ export default function AccessControl() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Histórico de Alterações */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <History className="w-5 h-5 text-gray-500 mr-2" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Histórico de Alterações</h3>
-          </div>
-        </div>
-        <div className="px-6 py-4">
-          {changeLog.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">Nenhuma alteração registrada</p>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {changeLog.map((log) => (
-                <div key={log.id} className="flex items-start p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex-shrink-0">
-                    <User className="w-4 h-4 text-gray-400 mt-0.5" />
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{log.action}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(log.timestamp)}</p>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{log.details}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Por: {log.user}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kanban Debug - Drag & Drop</title>
+  <style>
+    :root {
+      --blue: #3b82f6;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --gray: #6b7280;
+      --bg: #f3f4f6;
+      --card: #fff;
+      --border: #e5e7eb;
+    }
+    body { font-family: Arial, sans-serif; background: var(--bg); margin: 0; }
+    .wrap { padding: 16px; }
+
+    .toolbar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+    .toolbar button { padding: 6px 10px; border: 1px solid var(--border); background: #fff; cursor: pointer; }
+    .toolbar .status { font-size: 12px; color: var(--gray); }
+
+    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; min-height: 500px; }
+    .column { background: #fff; border: 2px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; }
+    .column.drag-over { border-style: dashed; border-color: var(--blue); }
+    .column-header { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); }
+    .column-header .title { display: flex; align-items: center; gap: 8px; }
+
+    .scroll { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 420px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: move; user-select: none; }
+    .card.dragging { opacity: 0.6; transform: rotate(2deg) scale(1.03); cursor: grabbing; }
+    .card .title { color: var(--blue); text-decoration: none; display: inline-block; }
+    .card .title[draggable="false"] { pointer-events: auto; }
+    .card .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--gray); margin-top: 4px; }
+    .indicator { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); font-size: 11px; color: var(--gray); }
+    .bars { display: flex; gap: 2px; }
+    .bars div { width: 4px; height: 12px; background: #d1d5db; border-radius: 2px; }
+    .log { background: #0b1020; color: #cbd5e1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; padding: 10px; height: 160px; overflow: auto; border-radius: 8px; }
+    .log .line { white-space: pre-wrap; font-size: 12px; }
+    .legend { font-size: 12px; color: var(--gray); margin: 6px 0 12px; }
+    .hint { font-size: 12px; color: var(--gray); margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="toolbar">
+      <button id="clearLogs">Limpar logs</button>
+      <button id="toggleTouchShim">Alternar shim toque</button>
+      <span class="status" id="statusText">Status: aguardando interação</span>
+    </div>
+    <div class="legend">Indicadores: mouseDown, dragging, dragOver, drop. Teste arrastar pelo corpo do card, não pelo link.</div>
+
+    <div class="board" role="grid" aria-label="Quadro Kanban">
+      <div class="column" data-col="open" aria-label="Coluna Abertos" role="region">
+        <div class="column-header">
+          <div class="title"><span style="background:#e0f2fe;border-radius:50%;width:20px;height:20px;display:inline-block"></span> Abertos</div>
+          <span class="count" id="count-open">0</span>
+        </div>
+        <div class="scroll" role="list">
+          <div class="card" draggable="true" data-id="t1">
+            <a href="#" class="title" draggable="false">Chamado T1</a>
+            <div class="meta"><span>#t1</span><span>Hardware</span></div>
+            <div class="indicator"><div class="bars"><div></div><div></div><div></div></div><span>Arraste para mover</span></div>
+          </div>
+          <div class="card" draggable="true" data-id="t2">
+            <a href="#" class="title" draggable="false">Chamado T2</a>
+            <div class="meta"><span>#t2</span><span>Software</span></div>
+            <div class="indicator"><div class="bars"><div></div><div></div><div></div></div><span>Arraste para mover</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column" data-col="in-progress" aria-label="Coluna Em Andamento" role="region">
+        <div class="column-header">
+          <div class="title"><span style="background:#fffbeb;border-radius:50%;width:20px;height:20px;display:inline-block"></span> Em Andamento</div>
+          <span class="count" id="count-in-progress">0</span>
+        </div>
+        <div class="scroll" role="list"></div>
+      </div>
+
+      <div class="column" data-col="resolved" aria-label="Coluna Resolvidos" role="region">
+        <div class="column-header">
+          <div class="title"><span style="background:#ecfdf5;border-radius:50%;width:20px;height:20px;display:inline-block"></span> Resolvidos</div>
+          <span class="count" id="count-resolved">0</span>
+        </div>
+        <div class="scroll" role="list"></div>
+      </div>
+    </div>
+
+    <div class="hint">Se o arraste não iniciar, tente arrastar pela borda/padding do card. Em alguns navegadores, drag-n-drop nativo não funciona em dispositivos de toque.</div>
+
+    <h3>Console</h3>
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+(function(){
+  const logEl = document.getElementById('log');
+  const statusText = document.getElementById('statusText');
+  const clearLogsBtn = document.getElementById('clearLogs');
+  const toggleTouchShimBtn = document.getElementById('toggleTouchShim');
+  let touchShimEnabled = false;
+
+  function log(msg, data) {
+    const line = document.createElement('div');
+    line.className = 'line';
+    const time = new Date().toLocaleTimeString();
+    line.textContent = `[${time}] ${msg}` + (data ? ' ' + JSON.stringify(data) : '');
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    try { console.log('[Debug]', msg, data || ''); } catch {}
+  }
+
+  clearLogsBtn.addEventListener('click', () => { logEl.innerHTML=''; log('Logs limpos'); });
+  toggleTouchShimBtn.addEventListener('click', () => {
+    touchShimEnabled = !touchShimEnabled;
+    log('Touch shim ' + (touchShimEnabled ? 'ativado' : 'desativado'));
+  });
+
+  function updateCounts(){
+    const cols = ['open','in-progress','resolved'];
+    cols.forEach(c => {
+      const col = document.querySelector(`.column[data-col="${c}"] .scroll`);
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById(`count-${c}`).textContent = String(count);
+    });
+  }
+  updateCounts();
+
+  function handleDragStart(e) {
+    const card = e.currentTarget;
+    const id = card.getAttribute('data-id');
+    card.classList.add('dragging');
+    statusText.textContent = 'Status: dragging ' + id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    try { e.dataTransfer.setDragImage(card, 10, 10); } catch {}
+    log('dragStart', { id });
+  }
+
+  function handleDragEnd(e) {
+    const card = e.currentTarget;
+    card.classList.remove('dragging');
+    statusText.textContent = 'Status: drag end';
+    log('dragEnd');
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const col = e.currentTarget.closest('.column');
+    col.classList.add('drag-over');
+    log('dragOver', { col: col.getAttribute('data-col') });
+  }
+
+  function handleDragEnter(e) {
+    e.preventDefault();
+    const col = e.currentTarget.closest('.column');
+    col.classList.add('drag-over');
+    log('dragEnter', { col: col.getAttribute('data-col') });
+  }
+
+  function handleDragLeave(e) {
+    const col = e.currentTarget.closest('.column');
+    col.classList.remove('drag-over');
+    log('dragLeave', { col: col.getAttribute('data-col') });
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    const col = e.currentTarget.closest('.column');
+    const targetKey = col.getAttribute('data-col');
+    const id = e.dataTransfer.getData('text/plain');
+    log('drop', { id, targetKey });
+
+    const card = document.querySelector(`.card[data-id="${id}"]`);
+    if (card) {
+      col.querySelector('.scroll').appendChild(card);
+      statusText.textContent = 'Status: dropped ' + id + ' -> ' + targetKey;
+      updateCounts();
+    }
+    col.classList.remove('drag-over');
+  }
+
+  // Attach events to cards
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('dragstart', handleDragStart);
+    card.addEventListener('dragend', handleDragEnd);
+    card.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      log('mouseDown on card', { id: card.getAttribute('data-id') });
+    });
+  });
+
+  // Attach events to columns and scroll areas
+  document.querySelectorAll('.column').forEach(column => {
+    column.addEventListener('dragover', handleDragOver);
+    column.addEventListener('dragenter', handleDragEnter);
+    column.addEventListener('dragleave', handleDragLeave);
+    column.addEventListener('drop', handleDrop);
+
+    const scroll = column.querySelector('.scroll');
+    scroll.addEventListener('dragover', handleDragOver);
+    scroll.addEventListener('dragenter', handleDragEnter);
+    scroll.addEventListener('drop', handleDrop);
+  });
+
+  // Touch shim (experimental): translates touch to mouse for drag
+  let touchCard = null;
+  document.addEventListener('touchstart', (e) => {
+    if (!touchShimEnabled) return;
+    const t = e.target.closest('.card');
+    if (!t) return;
+    touchCard = t;
+    log('touchStart shim', { id: t.getAttribute('data-id') });
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!touchShimEnabled || !touchCard) return;
+    // No-op visual shim: highlight dragging
+    touchCard.classList.add('dragging');
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!touchShimEnabled || !touchCard) return;
+    touchCard.classList.remove('dragging');
+    log('touchEnd shim');
+    touchCard = null;
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>

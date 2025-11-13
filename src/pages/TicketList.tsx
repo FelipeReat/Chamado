@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { Search, Filter, Plus, Eye, Edit, MessageSquare, User, Calendar, Tag, AlertTriangle } from 'lucide-react'
+import TicketKanbanView from '../components/TicketKanbanView'
+import { statusStyleFromSettings } from '../lib/statusColors'
+import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
 
 export default function TicketList() {
   const { user, isAdmin } = useAuth()
@@ -16,18 +19,37 @@ export default function TicketList() {
     assigned_to: ''
   })
   const [showFilters, setShowFilters] = useState(false)
+  const { viewMode, setViewMode } = useViewPreferences()
+  const [boardId, setBoardId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('current_board_id') || null
+    } catch { return null }
+  })
 
   const categories = ['Hardware', 'Software', 'Rede', 'Email', 'Sistema', 'Outro']
   const priorities = ['Low', 'Medium', 'High', 'Urgent']
-  const statuses = ['Open', 'In Progress', 'Resolved']
+  const [statusOptions, setStatusOptions] = useState<string[]>([])
+  const [settings, setSettings] = useState<any>(null)
 
   useEffect(() => {
     fetchTickets()
-  }, [filters])
+  }, [filters, boardId])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const s = await apiFetch('/settings')
+        const list = Array.isArray((s as any)?.statuses) ? (s as any).statuses : []
+        setStatusOptions(list.filter((x: any) => x.isActive).map((x: any) => x.name))
+        setSettings(s)
+      } catch {}
+    })()
+  }, [])
 
   const fetchTickets = async () => {
     try {
-      const resp = await apiFetch('/tickets')
+      const qs = boardId ? `?board_id=${encodeURIComponent(boardId)}` : ''
+      const resp = await apiFetch(`/tickets${qs}`)
       let data = resp.data || []
       // Apply filters client-side
       if (filters.status) data = data.filter((t: any) => t.status === filters.status)
@@ -62,14 +84,7 @@ export default function TicketList() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Open': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'In Progress': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'Resolved': return 'bg-green-100 text-green-800 border-green-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
+  const getStatusStyle = (status: string) => statusStyleFromSettings((settings as any)?.statuses || [], status)
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
@@ -85,6 +100,34 @@ export default function TicketList() {
       category: '',
       assigned_to: ''
     })
+  }
+
+  const updateTicketStatus = async (ticketId: string, newStatus: string) => {
+    try {
+      try { console.log('[TicketList] updateTicketStatus', { ticketId, newStatus }) } catch {}
+      // Usa boardId da página, com fallback ao localStorage
+      let currentBoardId: string | null = boardId
+      try {
+        if (!currentBoardId) {
+          currentBoardId = localStorage.getItem('current_board_id') || null
+        }
+      } catch {}
+      const updates: any = { status: newStatus }
+      if (currentBoardId) {
+        updates.board_id = currentBoardId
+      }
+      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus, board_id: updates.board_id ?? t.board_id } : t))
+      let persisted = false
+      try {
+        const resp = await apiFetch(`/tickets/${ticketId}`, { method: 'PUT', body: JSON.stringify(updates) })
+        persisted = Boolean((resp as any)?.success)
+      } catch (err) {
+        console.warn('Falha ao persistir status/board, mantendo atualização local:', err)
+      }
+      if (persisted) await fetchTickets()
+    } catch (error) {
+      console.error('Erro ao atualizar status do ticket:', error)
+    }
   }
 
   const getStatusLabel = (status: string) => {
@@ -124,7 +167,8 @@ export default function TicketList() {
             Gerencie todos os chamados de suporte
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex items-center gap-3">
+          <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
           <Link
             to="/chamados/novo"
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -174,7 +218,7 @@ export default function TicketList() {
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100"
                 >
                   <option value="">Todos</option>
-                  {statuses.map(status => (
+                  {statusOptions.map(status => (
                     <option key={status} value={status}>
                       {getStatusLabel(status)}
                     </option>
@@ -235,6 +279,8 @@ export default function TicketList() {
         )}
       </div>
 
+      {viewMode === 'list' ? (
+        <>
       {/* Tickets Table - Desktop */}
       <div className="hidden md:block bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md transition-colors">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -284,12 +330,7 @@ export default function TicketList() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    ticket.status === 'Open' ? 'bg-blue-100 text-blue-800' :
-                    ticket.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                    ticket.status === 'Resolved' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border`} style={getStatusStyle(ticket.status)}>
                     {ticket.status === 'Open' ? 'Aberto' :
                      ticket.status === 'In Progress' ? 'Em Andamento' :
                      ticket.status === 'Resolved' ? 'Resolvido' : 'Fechado'}
@@ -343,12 +384,7 @@ export default function TicketList() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">#{ticket.id.slice(0, 8)}</p>
               </div>
               <div className="flex flex-col items-end space-y-1">
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  ticket.status === 'Open' ? 'bg-blue-100 text-blue-800' :
-                  ticket.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
-                  ticket.status === 'Resolved' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border`} style={getStatusStyle(ticket.status)}>
                   {ticket.status === 'Open' ? 'Aberto' :
                    ticket.status === 'In Progress' ? 'Em Andamento' :
                    ticket.status === 'Resolved' ? 'Resolvido' : 'Fechado'}
@@ -379,11 +415,11 @@ export default function TicketList() {
               </div>
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Solicitante:</span>
-                <p className="font-medium text-sm">{ticket.requester?.user_metadata?.full_name || ticket.requester?.email}</p>
+                <p className="font-medium text-sm">{ticket.requester?.name || ticket.requester?.email}</p>
               </div>
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Atribuído:</span>
-                <p className="font-medium">{ticket.assigned_to?.user_metadata?.full_name || ticket.assigned_to?.email || '-'}</p>
+                <p className="font-medium">{ticket.assigned_to?.name || ticket.assigned_to?.email || '-'}</p>
               </div>
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Data:</span>
@@ -402,6 +438,17 @@ export default function TicketList() {
           </div>
         ))}
       </div>
+        </>
+      ) : (
+        <div className="h-full min-h-0">
+          <TicketKanbanView
+            tickets={filteredTickets as any}
+            getStatusStyle={getStatusStyle}
+            getPriorityColor={getPriorityColor}
+            onStatusChange={updateTicketStatus}
+          />
+        </div>
+      )}
 
       {filteredTickets.length === 0 && (
         <div className="text-center py-12">

@@ -22,7 +22,8 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
-  Circle
+  Circle,
+  Package
 } from 'lucide-react'
 
 interface KanbanColumn {
@@ -40,6 +41,7 @@ interface KanbanColumn {
   color: string
   order: number
   isActive: boolean
+  icon?: string
 }
 
 interface KanbanCustomizationProps {
@@ -77,13 +79,32 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
     fetchStatuses()
   }, [])
 
+const sanitizeColumn = (raw: any): KanbanColumn => ({
+  id: String(raw?.id ?? ''),
+  name: String(raw?.name ?? ''),
+  statusIds: Array.isArray(raw?.statusIds) ? raw.statusIds : [],
+  wipLimit: typeof raw?.wipLimit === 'number' ? raw.wipLimit : 0,
+  showAssignee: Boolean(raw?.showAssignee ?? true),
+  showDueDate: Boolean(raw?.showDueDate ?? true),
+  showPriority: Boolean(raw?.showPriority ?? true),
+  showTags: Boolean(raw?.showTags ?? false),
+  showDescription: Boolean(raw?.showDescription ?? true),
+  showCreatedDate: Boolean(raw?.showCreatedDate ?? false),
+  showStatus: Boolean(raw?.showStatus ?? false),
+  color: typeof raw?.color === 'string' ? raw.color : COLORS[0],
+  order: typeof raw?.order === 'number' ? raw.order : 0,
+  isActive: Boolean(raw?.isActive ?? true),
+  icon: typeof raw?.icon === 'string' ? raw.icon : 'Clock'
+})
+
   const fetchColumns = async () => {
     try {
       setLoading(true)
       const response = await apiFetch('/settings')
-      if (response.data) {
-        setColumns(response.data.kanbanColumns || [])
-      }
+      const nextColumns = Array.isArray((response as any)?.kanbanColumns) ? (response as any).kanbanColumns : []
+      const uniqueById: Record<string, any> = {}
+      nextColumns.forEach((c: any) => { uniqueById[String(c.id)] = c })
+      setColumns(Object.values(uniqueById).map(sanitizeColumn))
     } catch (error) {
       console.error('Erro ao buscar colunas:', error)
     } finally {
@@ -94,9 +115,8 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
   const fetchStatuses = async () => {
     try {
       const response = await apiFetch('/settings')
-      if (response.data) {
-        setAvailableStatuses(response.data.statuses || [])
-      }
+      const nextStatuses = Array.isArray((response as any)?.statuses) ? (response as any).statuses : []
+      setAvailableStatuses(nextStatuses)
     } catch (error) {
       console.error('Erro ao buscar status:', error)
     }
@@ -110,17 +130,18 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
           user,
           column: {
             ...columnData,
-            order: columns.length + 1,
-            color: columnData.color || COLORS[0]
+            order: (Array.isArray(columns) ? columns.length : 0) + 1,
+            color: columnData.color || COLORS[0],
+            icon: columnData.icon || 'Clock'
           }
         })
       })
       
-      if (response.data) {
-        setColumns([...columns, response.data])
-        setIsCreating(false)
-        onUpdate()
-      }
+      setColumns([...(Array.isArray(columns) ? columns : []), sanitizeColumn(response as any)])
+      setIsCreating(false)
+      onUpdate()
+      // Notificar outras telas para recarregar configurações (Dashboard/Kanban)
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao criar coluna:', error)
     }
@@ -136,11 +157,11 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
         })
       })
       
-      if (response.data) {
-        setColumns(columns.map(c => c.id === id ? response.data : c))
-        setEditingColumn(null)
-        onUpdate()
-      }
+      setColumns((Array.isArray(columns) ? columns : []).map(c => c.id === id ? sanitizeColumn(response as any) : c))
+      setEditingColumn(null)
+      onUpdate()
+      // Notificar outras telas para recarregar configurações (Dashboard/Kanban)
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao atualizar coluna:', error)
     }
@@ -155,8 +176,10 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
         body: JSON.stringify({ user })
       })
       
-      setColumns(columns.filter(c => c.id !== id))
+      setColumns((Array.isArray(columns) ? columns : []).filter(c => c.id !== id))
       onUpdate()
+      // Notificar outras telas para recarregar configurações (Dashboard/Kanban)
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao excluir coluna:', error)
     }
@@ -183,10 +206,11 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
     
     if (!draggedColumn) return
     
-    const draggedIndex = columns.findIndex(c => c.id === draggedColumn)
+    const list = Array.isArray(columns) ? columns : []
+    const draggedIndex = list.findIndex(c => c.id === draggedColumn)
     if (draggedIndex === -1 || draggedIndex === dropIndex) return
     
-    const newColumns = [...columns]
+    const newColumns = [...list]
     const [draggedItem] = newColumns.splice(draggedIndex, 1)
     newColumns.splice(dropIndex, 0, draggedItem)
     
@@ -201,12 +225,14 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
     
     // Salvar no backend
     try {
-      const columnIds = reorderedColumns.map(c => c.id)
+      const columnIds = (Array.isArray(reorderedColumns) ? reorderedColumns : []).map(c => c.id)
       await apiFetch('/settings/kanban-columns/reorder', {
         method: 'POST',
         body: JSON.stringify({ user, columnIds })
       })
       onUpdate()
+      // Notificar outras telas para recarregar configurações (Dashboard/Kanban)
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao reordenar colunas:', error)
       // Reverter em caso de erro
@@ -258,14 +284,15 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
       wipLimit: column?.wipLimit || 0,
       color: column?.color || COLORS[0],
       isActive: column?.isActive ?? true,
-      statusIds: column?.statusIds || [],
+      statusIds: Array.isArray(column?.statusIds) ? column!.statusIds : [],
       showAssignee: column?.showAssignee ?? true,
       showDueDate: column?.showDueDate ?? true,
       showPriority: column?.showPriority ?? true,
       showTags: column?.showTags ?? false,
       showDescription: column?.showDescription ?? true,
       showCreatedDate: column?.showCreatedDate ?? false,
-      showStatus: column?.showStatus ?? false
+      showStatus: column?.showStatus ?? false,
+      icon: column?.icon || 'Clock'
     })
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -325,6 +352,51 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
               ))}
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Ícone da Coluna
+            </label>
+            <select
+              value={formData.icon}
+              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {[
+                { value: 'Clock', label: 'Relógio' },
+                { value: 'AlertCircle', label: 'Alerta' },
+                { value: 'CheckCircle', label: 'Concluído' },
+                { value: 'BarChart3', label: 'Gráfico' },
+                { value: 'Users', label: 'Usuários' },
+                { value: 'Calendar', label: 'Calendário' },
+                { value: 'Star', label: 'Estrela' },
+                { value: 'FileText', label: 'Texto' },
+                { value: 'Hash', label: 'Hash' },
+                { value: 'Settings', label: 'Configurações' },
+                { value: 'Package', label: 'Pacote' },
+                { value: 'Circle', label: 'Círculo' },
+                { value: 'Layout', label: 'Layout' },
+              ].map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <span>Pré-visualização:</span>
+              {formData.icon === 'Clock' && <Clock className="w-4 h-4" />}
+              {formData.icon === 'AlertCircle' && <AlertCircle className="w-4 h-4" />}
+              {formData.icon === 'CheckCircle' && <CheckCircle className="w-4 h-4" />}
+              {formData.icon === 'BarChart3' && <BarChart3 className="w-4 h-4" />}
+              {formData.icon === 'Users' && <Users className="w-4 h-4" />}
+              {formData.icon === 'Calendar' && <Calendar className="w-4 h-4" />}
+              {formData.icon === 'Star' && <Star className="w-4 h-4" />}
+              {formData.icon === 'FileText' && <FileText className="w-4 h-4" />}
+              {formData.icon === 'Hash' && <Hash className="w-4 h-4" />}
+              {formData.icon === 'Settings' && <Settings className="w-4 h-4" />}
+              {formData.icon === 'Package' && <Package className="w-4 h-4" />}
+              {formData.icon === 'Circle' && <Circle className="w-4 h-4" />}
+              {formData.icon === 'Layout' && <Layout className="w-4 h-4" />}
+            </div>
+          </div>
           
           <div>
             <label className="flex items-center space-x-2">
@@ -349,12 +421,13 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
                 <label key={status.id} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    checked={formData.statusIds.includes(status.id)}
+                    checked={Array.isArray(formData.statusIds) && formData.statusIds.includes(status.id)}
                     onChange={(e) => {
+                      const current = Array.isArray(formData.statusIds) ? formData.statusIds : []
                       if (e.target.checked) {
-                        setFormData({ ...formData, statusIds: [...formData.statusIds, status.id] })
+                        setFormData({ ...formData, statusIds: [...current, status.id] })
                       } else {
-                        setFormData({ ...formData, statusIds: formData.statusIds.filter(id => id !== status.id) })
+                        setFormData({ ...formData, statusIds: current.filter(id => id !== status.id) })
                       }
                     }}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -475,7 +548,7 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
         </div>
       ) : (
         <div className="space-y-4">
-          {columns.map((column, index) => (
+          {(Array.isArray(columns) ? columns : []).map((column, index) => (
             <div
               key={column.id}
               draggable
@@ -508,7 +581,7 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
                         {column.name}
                       </h4>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {column.statusIds.length} status • WIP: {column.wipLimit || '∞'}
+                        {Array.isArray(column.statusIds) ? column.statusIds.length : 0} status • WIP: {column.wipLimit || '∞'}
                         {!column.isActive && ' • Inativo'}
                       </p>
                       <div className="flex flex-wrap gap-1 mt-1">

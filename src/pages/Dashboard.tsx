@@ -5,6 +5,7 @@ import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import TicketListView from '../components/TicketListView'
 import TicketKanbanView from '../components/TicketKanbanView'
+import { statusStyleFromSettings } from '../lib/statusColors'
 import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
 import { PlusCircle, Clock, CheckCircle, AlertCircle, TrendingUp, Users, List, Copy, ExternalLink } from 'lucide-react'
 
@@ -13,6 +14,12 @@ export default function Dashboard() {
   const { viewMode, setViewMode } = useViewPreferences()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
+  const [boardId, setBoardId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('current_board_id') || null
+    } catch { return null }
+  })
+  const [showNoBoardBanner, setShowNoBoardBanner] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     open: 0,
@@ -23,6 +30,7 @@ export default function Dashboard() {
 
   const publicFormUrl = `${window.location.origin}/formulario-chamado`
   const [copied, setCopied] = useState(false)
+  const [settings, setSettings] = useState<any>(null)
   const copyPublicUrl = async () => {
     try {
       await navigator.clipboard.writeText(publicFormUrl)
@@ -43,11 +51,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTickets()
+  }, [boardId])
+
+  useEffect(() => {
+    ;(async () => {
+      try { const s = await apiFetch('/settings'); setSettings(s) } catch {}
+    })()
   }, [])
 
   const fetchTickets = async () => {
     try {
-      const resp = await apiFetch('/tickets')
+      if (!user) { setLoading(false); return }
+      const qs = boardId ? `?board_id=${encodeURIComponent(boardId)}` : ''
+      const resp = await apiFetch(`/tickets${qs}`)
       const data = (resp.data || []) as Ticket[]
       // Filter client-side for non-admins
       const filtered = isAdmin ? data : data.filter(t => t.requester_id === user?.id || t.assigned_to_id === user?.id)
@@ -73,6 +89,9 @@ export default function Dashboard() {
         resolved,
         thisMonth
       })
+
+      const hasNoBoard = data.some(t => !t.board_id)
+      setShowNoBoardBanner(!boardId && hasNoBoard)
     } catch (error) {
       console.error('Error fetching tickets:', error)
     } finally {
@@ -82,16 +101,33 @@ export default function Dashboard() {
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     try {
-      // Atualiza estado local para feedback imediato
-      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus } : t))
-      // Opcional: chamar API para persistir alteração, se disponível
       try {
-        await apiFetch(`/tickets/${ticketId}`, { method: 'PUT', body: { status: newStatus } })
-      } catch (err) {
-        console.warn('Falha ao persistir status, mantendo atualização local:', err)
+        console.log('[Dashboard] updateTicketStatus', { ticketId, newStatus })
+      } catch {}
+      // Usa boardId da página, com fallback ao localStorage para maior robustez
+      let currentBoardId: string | null = boardId
+      try {
+        if (!currentBoardId) {
+          currentBoardId = localStorage.getItem('current_board_id') || null
+        }
+      } catch {}
+      const updates: any = { status: newStatus }
+      if (currentBoardId) {
+        updates.board_id = currentBoardId
       }
-      // Recarrega lista
-      await fetchTickets()
+      // Atualiza estado local para feedback imediato
+      setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: newStatus as Ticket['status'], board_id: (updates.board_id ?? t.board_id) as string | null } : t))
+      // Persistir alteração; recarrega apenas se sucesso
+      let persisted = false
+      try {
+        const resp = await apiFetch(`/tickets/${ticketId}`, { method: 'PUT', body: JSON.stringify(updates) })
+        persisted = Boolean((resp as any)?.success)
+      } catch (err) {
+        console.warn('Falha ao persistir status/board, mantendo atualização local:', err)
+      }
+      if (persisted) {
+        await fetchTickets()
+      }
     } catch (error) {
       console.error('Erro ao atualizar status do ticket:', error)
     }
@@ -115,6 +151,8 @@ export default function Dashboard() {
       default: return 'bg-gray-100 text-gray-800'
     }
   }
+
+  const getStatusStyle = (status: string) => statusStyleFromSettings((settings as any)?.statuses || [], status)
 
   if (loading) {
     return (
@@ -267,8 +305,34 @@ export default function Dashboard() {
         <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
       </div>
 
+      {showNoBoardBanner && (
+        <div className="mt-3 p-3 border border-amber-300 bg-amber-50 text-amber-800 rounded-md dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-200 text-sm">
+          Alguns chamados não estão associados a nenhum board e aparecem em todos os boards. Você pode associá-los em massa ao board atual.
+          <div className="mt-2">
+            <button
+              className="px-3 py-1 bg-blue-600 text-white rounded-md"
+              onClick={async () => {
+                const target = boardId
+                if (!target) {
+                  alert('Selecione um board para associar os chamados.')
+                  return
+                }
+                try {
+                  const resp = await apiFetch('/tickets/bulk-assign', { method: 'POST', body: JSON.stringify({ assign_nulls: true, board_id: target }) })
+                  console.log('Bulk assign result', resp)
+                  await fetchTickets()
+                  setShowNoBoardBanner(false)
+                } catch (err) {
+                  console.error('Falha ao associar chamados em massa:', err)
+                }
+              }}
+            >Associar chamados sem board ao board atual</button>
+          </div>
+        </div>
+      )}
+
       {/* Tickets View */}
-      <div className="transition-all duration-300 ease-in-out">
+      <div className="transition-all duration-300 ease-in-out h-full min-h-0">
         {viewMode === 'list' ? (
           <TicketListView
             tickets={tickets}
@@ -279,7 +343,7 @@ export default function Dashboard() {
         ) : (
           <TicketKanbanView
             tickets={tickets}
-            getStatusColor={getStatusColor}
+            getStatusStyle={getStatusStyle}
             getPriorityColor={getPriorityColor}
             onStatusChange={updateTicketStatus}
           />

@@ -12,3 +12,28 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Drag and Drop helpers */
+.cursor-grab { cursor: grab; }
+.cursor-grabbing { cursor: grabbing; }
+.kanban-column-over { border-style: dashed !important; border-color: #60a5fa !important; }
+
+/* Previne conflitos de drag-and-drop */
+.draggable-item {
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+.droppable-area {
+  touch-action: none !important;
+}
+
+/* Remove delays em mobile */
+@media (pointer: coarse) {
+  .draggable-item {
+    touch-action: none;
+  }
+}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teste Visual de Drag-and-Drop (Mouse)</title>
+  <style>
+    :root {
+      --border: #e5e7eb;
+      --over: #60a5fa;
+      --press: #3b82f6;
+    }
+    body { font-family: system-ui, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; }
+    h1 { margin: 0 0 8px; font-size: 18px; }
+    p { margin: 0 0 16px; color: #374151; }
+
+    .board { display: flex; gap: 16px; align-items: stretch; }
+    .column { flex: 1; background: #fff; border: 2px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; min-height: 340px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .column h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; color: #111827; }
+    .list { flex: 1; padding: 12px; overflow-y: auto; max-height: 440px; transition: border-color 160ms ease, background-color 160ms ease; }
+    .list.over { border: 2px dashed var(--over); border-radius: 8px; background: rgba(96,165,250,0.08); }
+
+    .card { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 10px; cursor: grab; transition: box-shadow 160ms ease, transform 160ms ease, opacity 160ms ease, border-color 160ms ease; }
+    .card .title { font-weight: 600; color: #1f2937; margin-bottom: 6px; }
+    .card .meta { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    .card .actions a { font-size: 12px; color: #2563eb; text-decoration: none; margin-right: 8px; }
+    .card.pressed { border-color: var(--press); box-shadow: 0 2px 6px rgba(59,130,246,0.25); }
+    .card.dragging { cursor: grabbing; opacity: 0.7; transform: rotate(1deg) scale(1.02); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+  </style>
+</head>
+<body>
+  <h1>Teste visual de Drag-and-Drop com mouse</h1>
+  <p>Arraste os cards entre as colunas. Observe os indicadores: pressionado (borda azul), arrastando (opacidade/rotação), coluna válida (borda tracejada azul). Logs detalhados no console.</p>
+
+  <div class="board">
+    <div class="column">
+      <h2>Abertos</h2>
+      <div class="list" data-target="Open">
+        <div class="card" draggable="true" data-id="c1">
+          <div class="title">Chamado #c1</div>
+          <div class="meta">Criado por: Ana • Prioridade: Alta</div>
+          <div class="actions"><a href="#" draggable="false">Detalhes</a><a href="#" draggable="false">Editar</a></div>
+        </div>
+        <div class="card" draggable="true" data-id="c2">
+          <div class="title">Chamado #c2</div>
+          <div class="meta">Criado por: Bruno • Prioridade: Média</div>
+          <div class="actions"><a href="#" draggable="false">Detalhes</a><a href="#" draggable="false">Editar</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="column">
+      <h2>Em Andamento</h2>
+      <div class="list" data-target="In Progress">
+        <div class="card" draggable="true" data-id="c3">
+          <div class="title">Chamado #c3</div>
+          <div class="meta">Criado por: Carla • Prioridade: Baixa</div>
+          <div class="actions"><a href="#" draggable="false">Detalhes</a><a href="#" draggable="false">Editar</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="column">
+      <h2>Resolvidos</h2>
+      <div class="list" data-target="Resolved"></div>
+    </div>
+  </div>
+
+  <script>
+    let dragged = null;
+
+    function log(event, payload = {}) {
+      console.log(`[VisualTest] ${event}`, payload);
+    }
+
+    function setupCard(card) {
+      card.addEventListener('mousedown', () => {
+        card.classList.add('pressed');
+        log('mousedown', { id: card.dataset.id });
+      });
+      card.addEventListener('mouseup', () => {
+        card.classList.remove('pressed');
+        log('mouseup', { id: card.dataset.id });
+      });
+      card.addEventListener('dragstart', (e) => {
+        dragged = card;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.dataset.id);
+        card.classList.add('dragging');
+        log('dragstart', { id: card.dataset.id });
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        card.classList.remove('pressed');
+        dragged = null;
+        log('dragend');
+      });
+    }
+
+    function setupList(list) {
+      list.addEventListener('dragenter', (e) => {
+        list.classList.add('over');
+        log('dragenter', { target: list.dataset.target });
+      });
+      list.addEventListener('dragover', (e) => {
+        e.preventDefault(); // permite drop
+        list.classList.add('over');
+        log('dragover', { target: list.dataset.target });
+      });
+      list.addEventListener('dragleave', () => {
+        list.classList.remove('over');
+        log('dragleave', { target: list.dataset.target });
+      });
+      list.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const id = e.dataTransfer.getData('text/plain');
+        const target = list.dataset.target;
+        log('drop', { id, target });
+        if (dragged) {
+          list.appendChild(dragged);
+          list.classList.remove('over');
+          log('moved', { id, to: target });
+        }
+      });
+    }
+
+    document.querySelectorAll('.card').forEach(setupCard);
+    document.querySelectorAll('.list').forEach(setupList);
+
+    // Evita que cliques nos links dentro do card interrompam o drag
+    document.querySelectorAll('.card .actions a').forEach(a => {
+      a.addEventListener('mousedown', (e) => {
+        // mantém o press visual no card, mas evita iniciar seleção no link
+        e.preventDefault();
+      });
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        log('link

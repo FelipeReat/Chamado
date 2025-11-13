@@ -49,7 +49,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Navigation */}
       <nav className="bg-white dark:bg-gray-800 shadow-sm transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -85,7 +85,7 @@ export default function Layout() {
               <div className="flex items-center space-x-3">
                 <div className="flex items-center">
                   <User className="w-5 h-5 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-700 dark:text-gray-200">{user?.user_metadata?.name || user?.email}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">{user?.name || user?.email}</span>
                 </div>
                 {/* Public form quick access */}
                 <a
@@ -164,7 +164,7 @@ export default function Layout() {
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <div className="flex items-center px-3">
                   <User className="w-5 h-5 text-gray-400 mr-3" />
-                  <span className="text-sm text-gray-700 dark:text-gray-200">{user?.user_metadata?.name || user?.email}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">{user?.name || user?.email}</span>
                 </div>
                 <div className="px-3 mt-3">
                   <button
@@ -189,8 +189,8 @@ export default function Layout() {
       </nav>
 
       {/* Main content */}
-      <main className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 overflow-hidden py-8">
+        <div className="w-full max-w-none px-4 sm:px-6 lg:px-8">
           <Outlet />
         </div>
       </main>

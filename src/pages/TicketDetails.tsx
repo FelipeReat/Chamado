@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { statusStyleFromSettings } from '../lib/statusColors'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
@@ -30,12 +31,29 @@ export default function TicketDetails() {
   const [loading, setLoading] = useState(true)
   const [commentLoading, setCommentLoading] = useState(false)
   const [statusLoading, setStatusLoading] = useState(false)
+  const [settings, setSettings] = useState<any>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editData, setEditData] = useState<any>(null)
+  const [technicians, setTechnicians] = useState<any[]>([])
 
   useEffect(() => {
     if (id) {
       fetchTicket()
       fetchComments()
     }
+    ;(async () => {
+      try {
+        const s = await apiFetch('/settings')
+        setSettings(s)
+      } catch {}
+    })()
+    ;(async () => {
+      try {
+        const resp = await apiFetch('/users')
+        const techs = (resp.data || []).filter((u: any) => u.role === 'technician')
+        setTechnicians(techs)
+      } catch {}
+    })()
   }, [id])
 
   const fetchTicket = async () => {
@@ -121,14 +139,17 @@ export default function TicketDetails() {
       if (ticket?.requester_id !== user?.id && ticket?.requester?.email) {
         await fetch('/api/send-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
+          },
           body: JSON.stringify({
             to: ticket.requester.email,
             subject: `Novo Comentário no Chamado: ${ticket.title}`,
             body: `
               <h2>Novo Comentário</h2>
               <p><strong>Chamado:</strong> ${ticket.title}</p>
-              <p><strong>Comentário de:</strong> ${comment.user?.user_metadata?.full_name || comment.user?.email}</p>
+              <p><strong>Comentário de:</strong> ${comment.user?.name || comment.user?.email}</p>
               <p><strong>Comentário:</strong> ${comment.content}</p>
               <p><a href="${window.location.origin}/chamados/${ticket?.id}">Clique aqui para visualizar o chamado</a></p>
             `
@@ -140,14 +161,17 @@ export default function TicketDetails() {
       if (ticket?.assigned_to_id !== user?.id && ticket?.assigned_to?.email) {
         await fetch('/api/send-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
+          },
           body: JSON.stringify({
             to: ticket.assigned_to.email,
             subject: `Novo Comentário no Chamado: ${ticket.title}`,
             body: `
               <h2>Novo Comentário</h2>
               <p><strong>Chamado:</strong> ${ticket.title}</p>
-              <p><strong>Comentário de:</strong> ${comment.user?.user_metadata?.full_name || comment.user?.email}</p>
+              <p><strong>Comentário de:</strong> ${comment.user?.name || comment.user?.email}</p>
               <p><strong>Comentário:</strong> ${comment.content}</p>
               <p><a href="${window.location.origin}/chamados/${ticket?.id}">Clique aqui para visualizar o chamado</a></p>
             `
@@ -168,7 +192,10 @@ export default function TicketDetails() {
       if (ticket?.requester?.email) {
         await fetch('/api/send-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
+          },
           body: JSON.stringify({
             to: ticket.requester.email,
             subject: `Status do Chamado Atualizado: ${ticket.title}`,
@@ -231,6 +258,8 @@ export default function TicketDetails() {
 
   const canEdit = isAdmin || ticket.requester_id === user?.id
   const canChangeStatus = isAdmin || ticket.assigned_to_id === user?.id
+  const canTechnicianEdit = user?.role === 'technician'
+  const allowEdit = canEdit || canTechnicianEdit
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -245,7 +274,7 @@ export default function TicketDetails() {
               Voltar para Lista
             </Link>
             
-            {canEdit && (
+            {allowEdit && (
               <Link
                 to={`/chamados/${ticket.id}/editar`}
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -269,16 +298,10 @@ export default function TicketDetails() {
                    ticket.priority === 'High' ? 'Alta' :
                    ticket.priority === 'Medium' ? 'Média' : 'Baixa'}
                 </span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border ${getStatusColor(ticket.status)}`}>
-                  {ticket.status === 'Open' ? (
-                    <Clock className="w-3 h-3 mr-1" />
-                  ) : ticket.status === 'In Progress' ? (
-                    <RefreshCw className="w-3 h-3 mr-1" />
-                  ) : (
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                  )}
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border`} style={statusStyleFromSettings((settings as any)?.statuses || [], ticket.status)}>
+                  <Clock className="w-3 h-3 mr-1" />
                   {ticket.status === 'Open' ? 'Aberto' :
-                   ticket.status === 'In Progress' ? 'Em Andamento' : 'Resolvido'}
+                   ticket.status === 'In Progress' ? 'Em Andamento' : ticket.status}
                 </span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                   <Tag className="w-3 h-3 mr-1" />
@@ -298,7 +321,7 @@ export default function TicketDetails() {
               <div className="flex items-center">
                 <User className="w-4 h-4 text-gray-400 mr-2" />
                 <span className="text-sm text-gray-900 dark:text-gray-100">
-                  {ticket.requester?.user_metadata?.full_name || ticket.requester?.email}
+                  {ticket.requester?.name || ticket.requester?.email}
                 </span>
               </div>
             </div>
@@ -308,7 +331,7 @@ export default function TicketDetails() {
               <div className="flex items-center">
                 <User className="w-4 h-4 text-gray-400 mr-2" />
                 <span className="text-sm text-gray-900 dark:text-gray-100">
-                  {ticket.assigned_to?.user_metadata?.full_name || 
+                  {ticket.assigned_to?.name || 
                    ticket.assigned_to?.email || 
                    'Não atribuído'}
                 </span>
@@ -357,41 +380,169 @@ export default function TicketDetails() {
             </div>
           </div>
 
+          {allowEdit && (
+            <div className="mb-4">
+              <button
+                onClick={() => {
+                  if (!editMode) setEditData({
+                    title: ticket.title,
+                    description: ticket.description,
+                    category: ticket.category,
+                    priority: ticket.priority,
+                    assigned_to_id: ticket.assigned_to_id || '',
+                    custom_fields: ticket.custom_fields || {}
+                  })
+                  setEditMode(!editMode)
+                }}
+                className="px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                {editMode ? 'Sair Edição' : 'Editar Informações'}
+              </button>
+            </div>
+          )}
+
+          {editMode && (
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Título</label>
+                <input
+                  value={editData.title}
+                  onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Descrição</label>
+                <textarea
+                  rows={4}
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                  <select
+                    value={editData.category}
+                    onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                  >
+                    {['Hardware','Software','Rede','Email','Sistema','Outro'].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Prioridade</label>
+                  <select
+                    value={editData.priority}
+                    onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                  >
+                    {['Low','Medium','High','Urgent'].map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuído a</label>
+                <select
+                  value={editData.assigned_to_id || ''}
+                  onChange={(e) => setEditData({ ...editData, assigned_to_id: e.target.value })}
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                >
+                  <option value="">Não atribuído</option>
+                  {technicians.map((t) => (
+                    <option key={t.id} value={t.id}>{t.user_metadata?.full_name || t.name || t.email}</option>
+                  ))}
+                </select>
+              </div>
+              {editData.custom_fields && Object.keys(editData.custom_fields || {}).length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Campos Personalizados</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                    {Object.entries(editData.custom_fields || {}).map(([key, value]) => (
+                      <div key={key}>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-300">{key}</label>
+                        <input
+                          value={Array.isArray(value) ? value.join(', ') : String(value)}
+                          onChange={(e) => setEditData({ ...editData, custom_fields: { ...editData.custom_fields, [key]: e.target.value } })}
+                          className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setEditMode(false)}
+                  className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700"
+                >Cancelar</button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const resp = await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(editData) })
+                      setTicket(resp.data)
+                      setEditMode(false)
+                    } catch (e) {
+                      console.error('Erro ao salvar alterações do chamado:', e)
+                    }
+                  }}
+                  className="px-3 py-2 rounded-md bg-blue-600 text-white"
+                >Salvar alterações</button>
+              </div>
+            </div>
+          )}
+
+          {ticket.custom_fields && Object.keys(ticket.custom_fields || {}).length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Campos do Formulário</h3>
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors space-y-3">
+                {Object.entries(ticket.custom_fields || {}).map(([key, value]) => {
+                  let label = key
+                  const list = (settings as any)?.formFields || []
+                  const found = list.find((f: any) => f.name === key)
+                  if (found?.label) label = found.label
+                  return (
+                    <div key={key} className="flex items-start justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-300">{label}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Status Change Buttons */}
           {canChangeStatus && (
             <div className="mb-4 sm:mb-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2 sm:mb-3">Alterar Status</h3>
-            <div className="flex flex-wrap gap-2">
-                {ticket.status !== 'Open' && (
-                  <button
-                    onClick={() => handleStatusChange('Open')}
-                    disabled={statusLoading}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                  >
-                    <Clock className="w-4 h-4 mr-1" />
-                    Marcar como Aberto
-                  </button>
-                )}
-                {ticket.status !== 'In Progress' && (
-                  <button
-                    onClick={() => handleStatusChange('In Progress')}
-                    disabled={statusLoading}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Marcar como Em Andamento
-                  </button>
-                )}
-                {ticket.status !== 'Resolved' && (
-                  <button
-                    onClick={() => handleStatusChange('Resolved')}
-                    disabled={statusLoading}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-1" />
-                    Marcar como Resolvido
-                  </button>
-                )}
+              <h3 className="text-sm font-medium text-gray-500 mb-2 sm:mb-3">Alterar Status</h3>
+              <div className="flex flex-wrap gap-2">
+                {((settings as any)?.statuses || [])
+                  .filter((s: any) => s.isActive)
+                  .map((s: any) => {
+                    const isCurrent = String(s.name) === String(ticket.status)
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => handleStatusChange(s.name)}
+                        disabled={statusLoading}
+                        className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium border ${isCurrent ? 'opacity-90' : ''}`}
+                        style={statusStyleFromSettings((settings as any)?.statuses || [], s.name)}
+                        aria-pressed={isCurrent}
+                        title={isCurrent ? `${s.name} (atual)` : `Marcar como ${s.name}`}
+                      >
+                        <Clock className="w-4 h-4 mr-1" />
+                        {s.name}
+                      </button>
+                    )
+                  })}
               </div>
             </div>
           )}
@@ -411,7 +562,7 @@ export default function TicketDetails() {
           {/* Existing Comments */}
           <div className="space-y-4 mb-6">
             {comments.map((comment) => (
-              <div className="flex space-x-3">
+              <div key={comment.id || comment.created_at} className="flex space-x-3">
                 <div className="flex-shrink-0">
                   <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                     <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
@@ -420,7 +571,7 @@ export default function TicketDetails() {
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {comment.user?.user_metadata?.full_name || comment.user?.email}
+                      {comment.user?.name || comment.user?.email}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(comment.created_at).toLocaleDateString('pt-BR', {

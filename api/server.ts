@@ -6,7 +6,8 @@ import app from './app.js';
 /**
  * start server with port
  */
-const PORT = process.env.PORT || 3001;
+// Usa variável de ambiente PORT se disponível; fallback para 3003 para evitar conflito com 3001
+const PORT = Number(process.env.PORT) || 3003;
 
 const server = app.listen(PORT, () => {
   console.log(`Server ready on port ${PORT}`);

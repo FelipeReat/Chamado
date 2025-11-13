@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kanban Final Debug</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7fb; margin: 0; }
+    .wrap { padding: 16px; }
+    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .column { background: #fff; border: 2px solid #e5e7eb; border-radius: 8px; }
+    .column.drag-over { border-style: dashed; border-color: #3b82f6; }
+    .header { display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom: 1px solid #e5e7eb; }
+    .scroll { padding: 10px; max-height: 420px; overflow-y: auto; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; cursor: move; user-select: none; margin-bottom:8px; }
+    .card.dragging { opacity: 0.6; transform: rotate(2deg) scale(1.03); cursor: grabbing; }
+    .title { color: #1d4ed8; text-decoration: none; display: inline-block; }
+    .legend { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    .log { background: #0b1020; color: #cbd5e1; padding: 10px; height: 160px; overflow: auto; border-radius: 8px; font-family: Consolas, monospace; }
+    .controls { display:flex; gap:8px; margin-bottom:8px; }
+    button { padding:6px 10px; border:1px solid #e5e7eb; background:#fff; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="controls">
+      <button id="clear">Limpar logs</button>
+      <button id="togglePointer">Alternar pointer-events none nos links</button>
+      <span id="status" style="font-size:12px;color:#6b7280">Status: aguardando</span>
+    </div>
+    <div class="legend">Teste: arraste pelo corpo do card. Logs mostram cada etapa. O toggle simula CSS bloqueando eventos.</div>
+
+    <div class="board">
+      <div class="column" data-col="open">
+        <div class="header"><strong>Abertos</strong><span id="count-open">0</span></div>
+        <div class="scroll">
+          <div class="card" draggable="true" data-id="t1">
+            <a href="#" class="title" draggable="false">Chamado T1</a>
+            <div style="font-size:12px;color:#6b7280">#t1 • Hardware</div>
+          </div>
+          <div class="card" draggable="true" data-id="t2">
+            <a href="#" class="title" draggable="false">Chamado T2</a>
+            <div style="font-size:12px;color:#6b7280">#t2 • Software</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column" data-col="in-progress">
+        <div class="header"><strong>Em Andamento</strong><span id="count-in-progress">0</span></div>
+        <div class="scroll"></div>
+      </div>
+
+      <div class="column" data-col="resolved">
+        <div class="header"><strong>Resolvidos</strong><span id="count-resolved">0</span></div>
+        <div class="scroll"></div>
+      </div>
+    </div>
+
+    <h3>Console</h3>
+    <div id="log" class="log"></div>
+  </div>
+
+<script>
+(function(){
+  const logEl = document.getElementById('log');
+  const statusEl = document.getElementById('status');
+  const clearBtn = document.getElementById('clear');
+  const togglePointerBtn = document.getElementById('togglePointer');
+  let pointerBlocked = false;
+
+  function log(msg, data) {
+    const line = document.createElement('div');
+    const time = new Date().toLocaleTimeString();
+    line.textContent = `[${time}] ${msg}` + (data ? ' ' + JSON.stringify(data) : '');
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    try { console.log('[FINAL]', msg, data || ''); } catch {}
+  }
+
+  clearBtn.addEventListener('click', () => { logEl.innerHTML = ''; log('Logs limpos'); });
+  togglePointerBtn.addEventListener('click', () => {
+    pointerBlocked = !pointerBlocked;
+    document.querySelectorAll('.title').forEach(a => {
+      a.style.pointerEvents = pointerBlocked ? 'none' : 'auto';
+    });
+    log('pointer-events nos links: ' + (pointerBlocked ? 'none' : 'auto'));
+  });
+
+  function updateCounts(){
+    ['open','in-progress','resolved'].forEach(c => {
+      const count = document.querySelector(`.column[data-col="${c}"] .scroll`).querySelectorAll('.card').length;
+      document.getElementById('count-' + c).textContent = String(count);
+    });
+  }
+  updateCounts();
+
+  function dragStart(e){
+    const card = e.currentTarget;
+    const id = card.getAttribute('data-id');
+    statusEl.textContent = 'Status: dragging ' + id;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    try { e.dataTransfer.setDragImage(card, 10, 10); } catch {}
+    log('dragstart', { id, types: e.dataTransfer.types });
+  }
+  function dragEnd(e){
+    const card = e.currentTarget;
+    card.classList.remove('dragging');
+    statusEl.textContent = 'Status: dragend';
+    log('dragend');
+  }
+  function dragOver(e){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const col = e.currentTarget.closest('.column');
+    col.classList.add('drag-over');
+    log('dragover', { col: col.getAttribute('data-col') });
+  }
+  function dragEnter(e){
+    e.preventDefault();
+    const col = e.currentTarget.closest('.column');
+    col.classList.add('drag-over');
+    log('dragenter', { col: col.getAttribute('data-col') });
+  }
+  function dragLeave(e){
+    const col = e.currentTarget.closest('.column');
+    col.classList.remove('drag-over');
+    log('dragleave', { col: col.getAttribute('data-col') });
+  }
+  function drop(e){
+    e.preventDefault();
+    const col = e.currentTarget.closest('.column');
+    const targetKey = col.getAttribute('data-col');
+    const id = e.dataTransfer.getData('text/plain');
+    const card = document.querySelector(`.card[data-id="${id}"]`);
+    log('drop', { id, targetKey, types: e.dataTransfer.types });
+    if (card) col.querySelector('.scroll').appendChild(card);
+    updateCounts();
+    col.classList.remove('drag-over');
+    statusEl.textContent = 'Status: dropped ' + id + ' -> ' + targetKey;
+  }
+
+  // Teste: mousedown preventDefault pode impedir drag
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('dragstart', dragStart);
+    card.addEventListener('dragend', dragEnd);
+    card.addEventListener('mousedown', (e) => {
+      log('mousedown card: button=' + e.button + ', defaultPrevented=' + e.defaultPrevented);
+      // NÃO chamamos e.preventDefault() aqui para validar se isso era o bloqueio
+    });
+  });
+
+  document.querySelectorAll('.column').forEach(column => {
+    column.addEventListener('dragover', dragOver);
+    column.addEventListener('dragenter', dragEnter);
+    column.addEventListener('dragleave', dragLeave);
+    column.addEventListener('drop', drop);
+    const scroll = column.querySelector('.scroll');
+    scroll.addEventListener('dragover', dragOver);
+    scroll.addEventListener('dragenter', dragEnter);
+    scroll.addEventListener('drop', drop);
+  });
+
+  // Fallback simples para touch: marca visualmente e loga
+  let touchCard = null;
+  document.addEventListener('touchstart', (e) => {
+    const t = e.target.closest('.card');
+    if (!t) return;
+    touchCard = t; t.classList.add('dragging');
+    log('touchstart shim', { id: t.getAttribute('data-id') });
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!touchCard) return; log('touchmove shim');
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (!touchCard) return;
+    touchCard.classList.remove('dragging');
+    log('touchend shim');
+    touchCard = null;
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>

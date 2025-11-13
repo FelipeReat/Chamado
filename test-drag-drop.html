@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teste Drag and Drop Kanban</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; }
+    .board { display: flex; gap: 16px; }
+    .column { flex: 1; background: #fff; border: 2px solid #e5e7eb; border-radius: 8px; display: flex; flex-direction: column; min-height: 300px; }
+    .column h2 { margin: 0; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+    .list { flex: 1; padding: 12px; overflow-y: auto; max-height: 400px; }
+    .list.over { border: 2px dashed #60a5fa; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin-bottom: 10px; cursor: move; }
+    .card.dragging { opacity: 0.6; transform: rotate(1deg) scale(1.02); }
+  </style>
+</head>
+<body>
+  <h1>Teste isolado de Drag-and-Drop</h1>
+  <p>Arraste os cards entre as colunas para validar o comportamento básico.</p>
+
+  <div class="board">
+    <div class="column">
+      <h2>Abertos</h2>
+      <div class="list" data-target="Open">
+        <div class="card" draggable="true" data-id="c1">Chamado #c1</div>
+        <div class="card" draggable="true" data-id="c2">Chamado #c2</div>
+      </div>
+    </div>
+    <div class="column">
+      <h2>Em Andamento</h2>
+      <div class="list" data-target="In Progress">
+        <div class="card" draggable="true" data-id="c3">Chamado #c3</div>
+      </div>
+    </div>
+    <div class="column">
+      <h2>Resolvidos</h2>
+      <div class="list" data-target="Resolved"></div>
+    </div>
+  </div>
+
+  <script>
+    let dragged = null;
+
+    const cards = document.querySelectorAll('.card');
+    const lists = document.querySelectorAll('.list');
+
+    cards.forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        dragged = card;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.dataset.id);
+        card.classList.add('dragging');
+        console.log('[Test] dragStart', { id: card.dataset.id });
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        dragged = null;
+        console.log('[Test] dragEnd');
+      });
+    });
+
+    lists.forEach(list => {
+      list.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        list.classList.add('over');
+      });
+      list.addEventListener('dragleave', () => {
+        list.classList.remove('over');
+      });
+      list.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const target = list.dataset.target;
+        const id = e.dataTransfer.getData('text/plain');
+        console.log('[Test] drop', { id, target });
+        if (dragged) {
+          list.appendChild(dragged);
+          list.classList.remove('over');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

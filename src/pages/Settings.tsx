@@ -5,6 +5,7 @@ import StatusManager from '../components/StatusManager'
 import FormEditor from '../components/FormEditor'
 import KanbanCustomization from '../components/KanbanCustomization'
 import AccessControl from '../components/AccessControl'
+import HistoryLog from '../components/HistoryLog'
 import { 
   Settings as SettingsIcon,
   BarChart3,
@@ -124,7 +125,7 @@ const TABS: TabProps[] = [
     id: 'history',
     label: 'Histórico',
     icon: History,
-    component: AccessControl // Reutiliza o mesmo componente que já tem histórico integrado
+    component: HistoryLog
   },
   {
     id: 'export',
@@ -151,9 +152,7 @@ export default function Settings() {
     try {
       setLoading(true)
       const response = await apiFetch('/settings')
-      if (response.data) {
-        setSettings(response.data)
-      }
+      setSettings(response as any)
     } catch (error) {
       console.error('Erro ao buscar configurações:', error)
     } finally {
@@ -169,16 +168,14 @@ export default function Settings() {
   const handleExport = async () => {
     try {
       const response = await apiFetch('/settings/export')
-      if (response.data) {
-        const dataStr = JSON.stringify(response.data, null, 2)
-        const dataBlob = new Blob([dataStr], { type: 'application/json' })
-        const url = URL.createObjectURL(dataBlob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `configuracoes-${new Date().toISOString().split('T')[0]}.json`
-        link.click()
-        URL.revokeObjectURL(url)
-      }
+      const dataStr = JSON.stringify(response as any, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `configuracoes-${new Date().toISOString().split('T')[0]}.json`
+      link.click()
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Erro ao exportar configurações:', error)
       alert('Erro ao exportar configurações')
@@ -200,10 +197,8 @@ export default function Settings() {
             body: JSON.stringify({ user, settings: data })
           })
           
-          if (response.data) {
-            alert('Configurações importadas com sucesso!')
-            handleUpdate()
-          }
+          alert('Configurações importadas com sucesso!')
+          handleUpdate()
         }
       } catch (error) {
         console.error('Erro ao importar configurações:', error)
@@ -222,10 +217,8 @@ export default function Settings() {
           body: JSON.stringify({ user })
         })
         
-        if (response.data) {
-          alert('Configurações redefinidas com sucesso!')
-          handleUpdate()
-        }
+        alert('Configurações redefinidas com sucesso!')
+        handleUpdate()
       } catch (error) {
         console.error('Erro ao redefinir configurações:', error)
         alert('Erro ao redefinir configurações')

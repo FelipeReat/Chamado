@@ -18,6 +18,7 @@ import ticketsRoutes from './routes/tickets.js'
 import usersRoutes from './routes/users.js'
 import publicRoutes from './routes/public.js'
 import settingsRoutes from './routes/settings.js'
+import boardsRoutes from './routes/boards.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -28,8 +29,18 @@ dotenv.config()
 
 const app: express.Application = express()
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'http://localhost:5173',
+  'http://localhost:5174',
+]
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    if (origin.startsWith('http://localhost:')) return callback(null, true)
+    return callback(null, false)
+  },
   credentials: true
 }))
 app.use(express.json({ limit: '10mb' }))
@@ -45,6 +56,7 @@ app.use('/api/tickets', ticketsRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/public', publicRoutes)
 app.use('/api', settingsRoutes)
+app.use('/api/boards', boardsRoutes)
 
 /**
  * health

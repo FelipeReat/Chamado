@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Isolado Drag-and-Drop</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+    .board { display: flex; gap: 20px; }
+    .column { 
+      flex: 1; 
+      background: white; 
+      border: 2px solid #ccc; 
+      border-radius: 8px; 
+      padding: 15px; 
+      min-height: 200px;
+    }
+    .card { 
+      background: #e3f2fd; 
+      border: 1px solid #2196f3; 
+      border-radius: 4px; 
+      padding: 10px; 
+      margin: 10px 0;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    .card:active { cursor: grabbing; }
+    .card.dragging { opacity: 0.5; }
+    .column.drag-over { border-color: #2196f3; border-style: dashed; }
+  </style>
+  </head>
+<body>
+  <h1>Teste Isolado - Drag and Drop</h1>
+  <p>Teste arrastar os cards abaixo:</p>
+  
+  <div class="board">
+    <div class="column" id="col1">
+      <h3>Coluna 1</h3>
+      <div class="card" draggable="true" id="card1">Card 1 - Teste</div>
+      <div class="card" draggable="true" id="card2">Card 2 - Teste</div>
+    </div>
+    <div class="column" id="col2">
+      <h3>Coluna 2</h3>
+    </div>
+  </div>
+
+  <script>
+    console.log('=== TESTE ISOLADO DRAG-AND-DROP ===');
+    
+    let draggedElement = null;
+    
+    // Configurar cards
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        console.log('DRAGSTART no card:', card.id);
+        draggedElement = card;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.id);
+      });
+      
+      card.addEventListener('dragend', (e) => {
+        console.log('DRAGEND no card:', card.id);
+        card.classList.remove('dragging');
+        draggedElement = null;
+      });
+    });
+    
+    // Configurar colunas
+    document.querySelectorAll('.column').forEach(column => {
+      column.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        column.classList.add('drag-over');
+        console.log('DRAGOVER na coluna:', column.id);
+      });
+      
+      column.addEventListener('dragleave', (e) => {
+        column.classList.remove('drag-over');
+        console.log('DRAGLEAVE na coluna:', column.id);
+      });
+      
+      column.addEventListener('drop', (e) => {
+        e.preventDefault();
+        column.classList.remove('drag-over');
+        console.log('DROP na coluna:', column.id);
+        
+        if (draggedElement) {
+          column.appendChild(draggedElement);
+          console.log('Card movido com sucesso!');
+        }
+      });
+    });
+    
+    console.log('Teste configurado. Tente arrastar os cards!');
+  </script>
+</body>
+</html>

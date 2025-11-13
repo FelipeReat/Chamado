@@ -67,9 +67,8 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
     try {
       setLoading(true)
       const response = await apiFetch('/settings')
-      if (response.data) {
-        setStatuses(response.data.statuses || [])
-      }
+      const nextStatuses = Array.isArray((response as any)?.statuses) ? (response as any).statuses : []
+      setStatuses(nextStatuses)
     } catch (error) {
       console.error('Erro ao buscar status:', error)
     } finally {
@@ -85,16 +84,15 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
           user,
           status: {
             ...statusData,
-            order: statuses.length + 1
+            order: (Array.isArray(statuses) ? statuses.length : 0) + 1
           }
         })
       })
       
-      if (response.data) {
-        setStatuses([...statuses, response.data])
-        setIsCreating(false)
-        onUpdate()
-      }
+      setStatuses([...(Array.isArray(statuses) ? statuses : []), response as any])
+      setIsCreating(false)
+      onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao criar status:', error)
     }
@@ -110,11 +108,10 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
         })
       })
       
-      if (response.data) {
-        setStatuses(statuses.map(s => s.id === id ? response.data : s))
-        setEditingStatus(null)
-        onUpdate()
-      }
+      setStatuses((Array.isArray(statuses) ? statuses : []).map(s => s.id === id ? (response as any) : s))
+      setEditingStatus(null)
+      onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
     }
@@ -131,6 +128,7 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
       
       setStatuses(statuses.filter(s => s.id !== id))
       onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao excluir status:', error)
     }
@@ -156,11 +154,11 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
     setDragOverIndex(null)
     
     if (!draggedStatus) return
-    
-    const draggedIndex = statuses.findIndex(s => s.id === draggedStatus)
+    const list = Array.isArray(statuses) ? statuses : []
+    const draggedIndex = list.findIndex(s => s.id === draggedStatus)
     if (draggedIndex === -1 || draggedIndex === dropIndex) return
     
-    const newStatuses = [...statuses]
+    const newStatuses = [...list]
     const [draggedItem] = newStatuses.splice(draggedIndex, 1)
     newStatuses.splice(dropIndex, 0, draggedItem)
     
@@ -175,12 +173,13 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
     
     // Salvar no backend
     try {
-      const statusIds = reorderedStatuses.map(s => s.id)
+      const statusIds = (Array.isArray(reorderedStatuses) ? reorderedStatuses : []).map(s => s.id)
       await apiFetch('/settings/statuses/reorder', {
         method: 'POST',
         body: JSON.stringify({ user, statusIds })
       })
       onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
       console.error('Erro ao reordenar status:', error)
       // Reverter em caso de erro
@@ -211,7 +210,7 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault()
-      if (!formData.name.trim()) return
+      if (!formData.name || !formData.name.trim()) return
       
       onSave(formData)
     }
@@ -242,8 +241,17 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
               onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {Object.keys(ICONS).map(iconName => (
-                <option key={iconName} value={iconName}>{iconName}</option>
+              {[
+                { value: 'Circle', label: 'Círculo' },
+                { value: 'Clock', label: 'Relógio' },
+                { value: 'CheckCircle', label: 'Concluído' },
+                { value: 'AlertCircle', label: 'Alerta' },
+                { value: 'BarChart3', label: 'Gráfico' },
+                { value: 'Package', label: 'Pacote' },
+                { value: 'Users', label: 'Usuários' },
+                { value: 'Settings', label: 'Configurações' }
+              ].map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>

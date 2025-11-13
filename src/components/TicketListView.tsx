@@ -7,6 +7,7 @@ interface TicketListViewProps {
   tickets: Ticket[]
   getPriorityColor: (priority: string) => string
   getStatusColor: (status: string) => string
+  loading?: boolean
 }
 
 export default function TicketListView({ tickets, getPriorityColor, getStatusColor }: TicketListViewProps) {
@@ -143,7 +144,7 @@ export default function TicketListView({ tickets, getPriorityColor, getStatusCol
                   </time>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" role="cell">
-                  {ticket.assigned_to_name || 'Não atribuído'}
+                  {ticket.assigned_to?.name || ticket.assigned_to?.email || 'Não atribuído'}
                 </td>
               </tr>
             ))}

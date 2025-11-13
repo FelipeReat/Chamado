@@ -117,16 +117,1046 @@
       "order": 3
     }
   ],
-  "permissions": {},
+  "permissions": {
+    "allowPublicTickets": true
+  },
   "history": [
     {
-      "id": "1762620131504",
+      "id": "1763040867308",
       "action": "settings_reset",
-      "user": "teste@example.com",
-      "timestamp": "2025-11-08T16:42:11.504Z",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-13T13:34:27.308Z",
       "details": {}
+    },
+    {
+      "id": "1762987375729",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:42:55.729Z",
+      "details": {
+        "fieldId": "1762984630263",
+        "fieldName": "id_solicitante"
+      }
+    },
+    {
+      "id": "1762986636739",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:36.739Z",
+      "details": {
+        "fieldId": "1762986630255",
+        "fieldName": "name"
+      }
+    },
+    {
+      "id": "1762986634411",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:34.411Z",
+      "details": {
+        "fieldId": "1762986633267",
+        "fieldName": "email"
+      }
+    },
+    {
+      "id": "1762986633267",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:33.267Z",
+      "details": {
+        "fieldId": "1762986633267",
+        "fieldName": "email"
+      }
+    },
+    {
+      "id": "1762986630255",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:30.255Z",
+      "details": {
+        "fieldId": "1762986630255",
+        "fieldName": "name"
+      }
+    },
+    {
+      "id": "1762986608569",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:08.569Z",
+      "details": {
+        "fieldId": "1762986602236",
+        "fieldName": "name"
+      }
+    },
+    {
+      "id": "1762986606746",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:06.746Z",
+      "details": {
+        "fieldId": "1762986605710",
+        "fieldName": "email"
+      }
+    },
+    {
+      "id": "1762986605710",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:05.710Z",
+      "details": {
+        "fieldId": "1762986605710",
+        "fieldName": "email"
+      }
+    },
+    {
+      "id": "1762986602237",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:30:02.237Z",
+      "details": {
+        "fieldId": "1762986602236",
+        "fieldName": "name"
+      }
+    },
+    {
+      "id": "1762985156986",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:05:56.986Z",
+      "details": {
+        "fieldId": "1762985156986",
+        "fieldName": "priority"
+      }
+    },
+    {
+      "id": "1762985079267",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T22:04:39.267Z",
+      "details": {
+        "fieldId": "1762984630263",
+        "fieldName": "id_solicitante"
+      }
+    },
+    {
+      "id": "1762984691720",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:58:11.720Z",
+      "details": {
+        "fieldId": "1762984630263",
+        "fieldName": "id_solicitante"
+      }
+    },
+    {
+      "id": "1762984676442",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:57:56.442Z",
+      "details": {
+        "fieldId": "1762984630263",
+        "fieldName": "id_solicitante"
+      }
+    },
+    {
+      "id": "1762984630263",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:57:10.263Z",
+      "details": {
+        "fieldId": "1762984630263",
+        "fieldName": "id_solicitante"
+      }
+    },
+    {
+      "id": "1762984519993",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:55:19.993Z",
+      "details": {
+        "fieldId": "priority",
+        "fieldName": "Prioridade"
+      }
+    },
+    {
+      "id": "1762984517541",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:55:17.541Z",
+      "details": {
+        "fieldId": "description",
+        "fieldName": "Descrição"
+      }
+    },
+    {
+      "id": "1762984515260",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:55:15.260Z",
+      "details": {
+        "fieldId": "title",
+        "fieldName": "Título"
+      }
+    },
+    {
+      "id": "1762984449505",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:54:09.505Z",
+      "details": {
+        "fieldId": "1762983977266",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1762984357008",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:52:37.008Z",
+      "details": {
+        "fieldId": "1762984357008",
+        "fieldName": "assigned_to_id"
+      }
+    },
+    {
+      "id": "1762984133044",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:48:53.044Z",
+      "details": {
+        "fieldId": "1762983977266",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1762983977266",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:46:17.266Z",
+      "details": {
+        "fieldId": "1762983977266",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1762983962935",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:46:02.935Z",
+      "details": {
+        "fieldId": "1762983678087",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1762983682723",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:41:22.723Z",
+      "details": {
+        "fieldId": "1762983678087",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1762983678087",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:41:18.087Z",
+      "details": {
+        "fieldId": "1762983678087",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1762983599464",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:39:59.464Z",
+      "details": {
+        "newOrder": [
+          "builtin:title",
+          "builtin:description",
+          "builtin:priority",
+          "builtin:category",
+          "builtin:assigned_to_id",
+          "title",
+          "description",
+          "priority"
+        ]
+      }
+    },
+    {
+      "id": "1762983222275",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:33:42.275Z",
+      "details": {
+        "fieldId": "category",
+        "fieldName": "Categoria"
+      }
+    },
+    {
+      "id": "1762982983122",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:29:43.122Z",
+      "details": {
+        "newOrder": [
+          "title",
+          "description",
+          "priority",
+          "category"
+        ]
+      }
+    },
+    {
+      "id": "1762982981571",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:29:41.571Z",
+      "details": {
+        "newOrder": [
+          "title",
+          "description",
+          "category",
+          "priority"
+        ]
+      }
+    },
+    {
+      "id": "1762982974092",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:29:34.092Z",
+      "details": {
+        "newOrder": [
+          "title",
+          "category",
+          "description",
+          "priority"
+        ]
+      }
+    },
+    {
+      "id": "1762982954719",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T21:29:14.719Z",
+      "details": {
+        "fieldId": "category",
+        "fieldName": "Categoria"
+      }
+    },
+    {
+      "id": "1762979562486",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:32:42.486Z",
+      "details": {
+        "columnId": "1762977798095",
+        "columnName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762979526181",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:32:06.181Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "Para Desenvolvimento"
+      }
+    },
+    {
+      "id": "1762977832391",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:03:52.391Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "Para Desenvolvimento"
+      }
+    },
+    {
+      "id": "1762977798095",
+      "action": "kanban_column_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:03:18.095Z",
+      "details": {
+        "columnId": "1762977798095",
+        "columnName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762977767979",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:02:47.979Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "Em Desenvolvimento"
+      }
+    },
+    {
+      "id": "1762977739519",
+      "action": "status_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:02:19.519Z",
+      "details": {
+        "statusId": "1762977739519",
+        "statusName": "Em Desenvolvimento"
+      }
+    },
+    {
+      "id": "1762977717926",
+      "action": "status_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T20:01:57.926Z",
+      "details": {
+        "statusId": "1762784657003",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762975661494",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T19:27:41.494Z",
+      "details": {
+        "fieldId": "1762973568464",
+        "fieldName": "Detalhes"
+      }
+    },
+    {
+      "id": "1762975659573",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T19:27:39.573Z",
+      "details": {
+        "fieldId": "1762784674640",
+        "fieldName": "teste"
+      }
+    },
+    {
+      "id": "1762973568464",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-12T18:52:48.464Z",
+      "details": {
+        "fieldId": "1762973568464",
+        "fieldName": "Detalhes"
+      }
+    },
+    {
+      "id": "1762809876185",
+      "action": "kanban_columns_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T21:24:36.185Z",
+      "details": {
+        "newOrder": [
+          "open",
+          "in-progress",
+          "resolved",
+          "1762789356419"
+        ]
+      }
+    },
+    {
+      "id": "1762809874881",
+      "action": "kanban_columns_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T21:24:34.881Z",
+      "details": {
+        "newOrder": [
+          "open",
+          "resolved",
+          "in-progress",
+          "1762789356419"
+        ]
+      }
+    },
+    {
+      "id": "1762809872788",
+      "action": "kanban_columns_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T21:24:32.788Z",
+      "details": {
+        "newOrder": [
+          "open",
+          "in-progress",
+          "resolved",
+          "1762789356419"
+        ]
+      }
+    },
+    {
+      "id": "1762809871273",
+      "action": "kanban_columns_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T21:24:31.273Z",
+      "details": {
+        "newOrder": [
+          "open",
+          "in-progress",
+          "1762789356419",
+          "resolved"
+        ]
+      }
+    },
+    {
+      "id": "1762808074171",
+      "action": "settings_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T20:54:34.171Z",
+      "details": {
+        "changes": [
+          "user",
+          "permissions"
+        ]
+      }
+    },
+    {
+      "id": "1762803842514",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T19:44:02.514Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762803378112",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T19:36:18.112Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "asdasdasdasd"
+      }
+    },
+    {
+      "id": "1762801889988",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T19:11:29.988Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "asdasdasdasd"
+      }
+    },
+    {
+      "id": "1762801866388",
+      "action": "kanban_column_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T19:11:06.388Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "asdasdasdasd"
+      }
+    },
+    {
+      "id": "1762789375951",
+      "action": "kanban_column_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T15:42:55.951Z",
+      "details": {
+        "columnId": "1762784686053",
+        "columnName": "teste"
+      }
+    },
+    {
+      "id": "1762789356419",
+      "action": "kanban_column_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T15:42:36.419Z",
+      "details": {
+        "columnId": "1762789356419",
+        "columnName": "asdasdasdasd"
+      }
+    },
+    {
+      "id": "1762784686053",
+      "action": "kanban_column_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T14:24:46.053Z",
+      "details": {
+        "columnId": "1762784686053",
+        "columnName": "teste"
+      }
+    },
+    {
+      "id": "1762784674640",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T14:24:34.640Z",
+      "details": {
+        "fieldId": "1762784674640",
+        "fieldName": "teste"
+      }
+    },
+    {
+      "id": "1762784664080",
+      "action": "status_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T14:24:24.080Z",
+      "details": {
+        "statusId": "1762784657003",
+        "statusName": "arquivado"
+      }
+    },
+    {
+      "id": "1762784657003",
+      "action": "status_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T14:24:17.003Z",
+      "details": {
+        "statusId": "1762784657003",
+        "statusName": "arquivado"
+      }
+    },
+    {
+      "id": "1762781648758",
+      "action": "kanban_column_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:34:08.758Z",
+      "details": {
+        "columnId": "1762779799254",
+        "columnName": "teste"
+      }
+    },
+    {
+      "id": "1762781644808",
+      "action": "form_field_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:34:04.808Z",
+      "details": {
+        "fieldId": "1762779853492",
+        "fieldName": "teasdte"
+      }
+    },
+    {
+      "id": "1762781640408",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:34:00.408Z",
+      "details": {
+        "statusId": "1762780167400",
+        "statusName": "teste"
+      }
+    },
+    {
+      "id": "1762781639148",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:59.148Z",
+      "details": {
+        "statusId": "1762779867210",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781637598",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:57.598Z",
+      "details": {
+        "statusId": "1762779867043",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781636419",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:56.419Z",
+      "details": {
+        "statusId": "1762779866859",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781635148",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:55.148Z",
+      "details": {
+        "statusId": "1762779866667",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781634102",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:54.102Z",
+      "details": {
+        "statusId": "1762779866478",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781632617",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:52.617Z",
+      "details": {
+        "statusId": "1762779866325",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781631424",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:51.424Z",
+      "details": {
+        "statusId": "1762779866094",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781630060",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:50.060Z",
+      "details": {
+        "statusId": "1762779865937",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781628806",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:48.806Z",
+      "details": {
+        "statusId": "1762779865746",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781627447",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:47.447Z",
+      "details": {
+        "statusId": "1762779864636",
+        "statusName": "testes"
+      }
+    },
+    {
+      "id": "1762781625895",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:45.895Z",
+      "details": {
+        "statusId": "1762778090252",
+        "statusName": "teste"
+      }
+    },
+    {
+      "id": "1762781624612",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:44.612Z",
+      "details": {
+        "statusId": "1762778090098",
+        "statusName": "teste"
+      }
+    },
+    {
+      "id": "1762781623412",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:43.412Z",
+      "details": {
+        "statusId": "1762778089914",
+        "statusName": "teste"
+      }
+    },
+    {
+      "id": "1762781622062",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:42.062Z",
+      "details": {
+        "statusId": "1762778088867",
+        "statusName": "teste"
+      }
+    },
+    {
+      "id": "1762781620594",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:40.594Z",
+      "details": {
+        "statusId": "1762778035780",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781619210",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:39.210Z",
+      "details": {
+        "statusId": "1762778035631",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781616977",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:36.977Z",
+      "details": {
+        "statusId": "1762778035456",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781615588",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:35.588Z",
+      "details": {
+        "statusId": "1762778035281",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781614121",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:34.121Z",
+      "details": {
+        "statusId": "1762778033585",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781612803",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:32.803Z",
+      "details": {
+        "statusId": "1762778033462",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781611353",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:31.353Z",
+      "details": {
+        "statusId": "1762778033280",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781610004",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:30.004Z",
+      "details": {
+        "statusId": "1762778033124",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781608507",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:28.507Z",
+      "details": {
+        "statusId": "1762778032958",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781606828",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:26.828Z",
+      "details": {
+        "statusId": "1762778030780",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781605231",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:25.231Z",
+      "details": {
+        "statusId": "1762778030650",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781603688",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:23.688Z",
+      "details": {
+        "statusId": "1762778030494",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781602151",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:22.151Z",
+      "details": {
+        "statusId": "1762778030342",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781600856",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:20.856Z",
+      "details": {
+        "statusId": "1762778030183",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781599562",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:19.562Z",
+      "details": {
+        "statusId": "1762778027029",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781598184",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:18.184Z",
+      "details": {
+        "statusId": "1762778026823",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781596904",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:16.904Z",
+      "details": {
+        "statusId": "1762778026657",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781595527",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:15.527Z",
+      "details": {
+        "statusId": "1762778026458",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781594179",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:14.179Z",
+      "details": {
+        "statusId": "1762778026232",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781593032",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:13.032Z",
+      "details": {
+        "statusId": "1762778026081",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781591817",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:11.817Z",
+      "details": {
+        "statusId": "1762778025896",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781590595",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:10.595Z",
+      "details": {
+        "statusId": "1762778025740",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781589351",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:09.351Z",
+      "details": {
+        "statusId": "1762778025557",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781588231",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:08.231Z",
+      "details": {
+        "statusId": "1762778024694",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781586806",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:06.806Z",
+      "details": {
+        "statusId": "1762778024487",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781585368",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:05.368Z",
+      "details": {
+        "statusId": "1762778024341",
+        "statusName": "Arquivado"
+      }
+    },
+    {
+      "id": "1762781583702",
+      "action": "status_deleted",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-10T13:33:03.702Z",
+      "details": {
+        "statusId": "1762778024181",
+        "statusName": "Arquivado"
+      }
     }
   ],
   "createdAt": "2024-01-01T00:00:00.000Z",
-  "updatedAt": "2025-11-08T16:42:11.504Z"
+  "updatedAt": "2025-11-13T13:34:27.308Z"
 }

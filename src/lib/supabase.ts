@@ -4,6 +4,7 @@ export interface User {
   email: string
   name: string
   role: 'user' | 'technician' | 'admin'
+  created_at?: string
 }
 
 export const supabase = undefined as any
@@ -17,6 +18,7 @@ export interface Ticket {
   category: 'Hardware' | 'Software' | 'Network' | 'Other'
   priority: 'Low' | 'Medium' | 'High' | 'Urgent'
   status: 'Open' | 'In Progress' | 'Resolved'
+  board_id: string | null
   requester_id: string
   assigned_to_id: string | null
   created_at: string

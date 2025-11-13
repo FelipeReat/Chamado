@@ -103,3 +103,12 @@ export async function ensureDefaultAdmin() {
   const user = await addUser({ email, name, role: 'admin', password })
   return user
 }
+
+export function deleteUser(id: string): boolean {
+  const users = getUsers()
+  const idx = users.findIndex(u => u.id === id)
+  if (idx === -1) return false
+  users.splice(idx, 1)
+  saveUsers(users)
+  return true
+}
