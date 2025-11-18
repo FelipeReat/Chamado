@@ -19,7 +19,7 @@ import { useState } from 'react'
 import { useTheme } from '../hooks/useTheme'
 
 export default function Layout() {
-  const { user, signOut, isAdmin } = useAuth()
+  const { user, signOut, isAdmin, isTechnician } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -36,7 +36,7 @@ export default function Layout() {
     { name: 'Meus Chamados', href: '/chamados', icon: List },
   ]
 
-  if (isAdmin) {
+  if (isAdmin || isTechnician) {
     navigation.push(
       { name: 'Usuários', href: '/usuarios', icon: Users },
       { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },

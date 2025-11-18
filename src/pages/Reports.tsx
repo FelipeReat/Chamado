@@ -16,7 +16,7 @@ import {
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
 
 export default function Reports() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('30')
@@ -47,7 +47,7 @@ export default function Reports() {
       let data = resp.data || []
       // apply date filter client-side
       data = data.filter((t: any) => new Date(t.created_at) >= daysAgo)
-      if (!isAdmin) data = data.filter((t: any) => t.requester_id === user?.id || t.assigned_to_id === user?.id)
+      if (!(isAdmin || isTechnician)) data = data.filter((t: any) => t.requester_id === user?.id || t.assigned_to_id === user?.id)
       setTickets(data)
       processData(data)
     } catch (error) {
@@ -337,11 +337,11 @@ export default function Reports() {
         <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Distribuição por Categoria</h3>
           <div className="h-48 lg:h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <RechartsBarChart data={chartData.category} layout="horizontal">
+              <RechartsBarChart data={chartData.category} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="name" type="category" width={80} />
-                <Tooltip />
+                <Tooltip cursor={{ fill: 'transparent' }} wrapperStyle={{ outline: 'none' }} />
                 <Bar dataKey="value" fill="#8B5CF6" />
               </RechartsBarChart>
             </ResponsiveContainer>

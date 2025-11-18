@@ -8,7 +8,7 @@ import { statusStyleFromSettings } from '../lib/statusColors'
 import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
 
 export default function TicketList() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -56,7 +56,7 @@ export default function TicketList() {
       if (filters.priority) data = data.filter((t: any) => t.priority === filters.priority)
       if (filters.category) data = data.filter((t: any) => t.category === filters.category)
       if (filters.assigned_to) data = data.filter((t: any) => t.assigned_to_id === filters.assigned_to)
-      if (!isAdmin) data = data.filter((t: any) => t.requester_id === user?.id || t.assigned_to_id === user?.id)
+      if (!(isAdmin || isTechnician)) data = data.filter((t: any) => t.requester_id === user?.id || t.assigned_to_id === user?.id)
       setTickets(data)
     } catch (error) {
       console.error('Error fetching tickets:', error)

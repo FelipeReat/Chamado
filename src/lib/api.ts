@@ -13,8 +13,16 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     headers,
   })
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || 'API error')
+    const ct = res.headers.get('content-type') || ''
+    try {
+      if (ct.includes('application/json')) {
+        const body = await res.json()
+        const msg = (body && (body.error || body.message)) ? String(body.error || body.message) : ''
+        throw new Error(`API ${res.status}: ${msg || res.statusText}`)
+      }
+    } catch {}
+    const text = await res.text().catch(() => '')
+    throw new Error(`API ${res.status}: ${text || res.statusText || 'API error'}`)
   }
   return res.json()
 }

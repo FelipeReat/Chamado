@@ -51,7 +51,7 @@ const COLORS = [
 ]
 
 export default function StatusManager({ onUpdate }: StatusManagerProps) {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [statuses, setStatuses] = useState<Status[]>([])
   const [loading, setLoading] = useState(true)
   const [editingStatus, setEditingStatus] = useState<Status | null>(null)
@@ -310,7 +310,7 @@ export default function StatusManager({ onUpdate }: StatusManagerProps) {
     )
   }
 
-  if (!isAdmin) {
+  if (!(isAdmin || isTechnician)) {
     return (
       <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
         <div className="flex items-center">

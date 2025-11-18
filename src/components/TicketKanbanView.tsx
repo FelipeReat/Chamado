@@ -40,11 +40,20 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
   useEffect(() => {
     const loadColumns = async () => {
       try {
+        const token = localStorage.getItem('auth_token')
+        if (!token) {
+          setColumns([
+            { id: 'open', title: 'Abertos', statusIds: ['open'], targetStatus: statusIdToLabel('open'), icon: <Clock className="w-4 h-4" />, color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' },
+            { id: 'in-progress', title: 'Em Andamento', statusIds: ['in-progress'], targetStatus: statusIdToLabel('in-progress'), icon: <AlertCircle className="w-4 h-4" />, color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' },
+            { id: 'resolved', title: 'Resolvidos', statusIds: ['resolved'], targetStatus: statusIdToLabel('resolved'), icon: <CheckCircle className="w-4 h-4" />, color: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' },
+          ])
+          return
+        }
         const settings = await apiFetch('/settings')
         const derived = deriveColumnsFromSettings(settings as any)
         setColumns(derived)
       } catch (err) {
-        console.error('Erro ao carregar colunas do Kanban, usando padrão:', err)
+        console.warn('Kanban: usando colunas padrão')
         // Fallback para padrão
         setColumns([
           {

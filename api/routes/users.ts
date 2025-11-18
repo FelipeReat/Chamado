@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { getUsers, addUser, findUserById, updateUser, deleteUser } from '../storage/users.js'
+import { getUsers, addUser, findUserById, updateUser, deleteUser, updateUserPreferences } from '../storage/users.js'
 import { getTickets, saveTickets } from '../storage/tickets.js'
 
 const router = Router()
@@ -31,6 +31,34 @@ function requireAdmin(req, res, next) {
 router.get('/', requireAuth, (req, res) => {
   const list = getUsers().map(u => ({ id: u.id, email: u.email, name: u.name, role: u.role, created_at: u.created_at }))
   res.json({ success: true, data: list })
+})
+
+// Current user preferences
+router.get('/me/preferences', requireAuth, (req, res) => {
+  const actor = (req as any).user || {}
+  const u = findUserById(actor.sub)
+  if (!u) return res.status(404).json({ success: false, error: 'Usuário não encontrado' })
+  const prefs = u.preferences || { viewMode: 'kanban', themeMode: 'system' }
+  res.json({ success: true, data: prefs })
+})
+
+router.put('/me/preferences', requireAuth, (req, res) => {
+  const actor = (req as any).user || {}
+  const { viewMode, themeMode } = req.body || {}
+  const allowedView = ['list', 'kanban']
+  const allowedTheme = ['light', 'dark', 'system']
+  const prefs: any = {}
+  if (viewMode !== undefined) {
+    if (!allowedView.includes(viewMode)) return res.status(400).json({ success: false, error: 'viewMode inválido' })
+    prefs.viewMode = viewMode
+  }
+  if (themeMode !== undefined) {
+    if (!allowedTheme.includes(themeMode)) return res.status(400).json({ success: false, error: 'themeMode inválido' })
+    prefs.themeMode = themeMode
+  }
+  const updated = updateUserPreferences(actor.sub, prefs)
+  if (!updated) return res.status(404).json({ success: false, error: 'Usuário não encontrado' })
+  res.json({ success: true, data: updated.preferences })
 })
 
 router.post('/', requireAuth, requireAdmin, async (req, res) => {

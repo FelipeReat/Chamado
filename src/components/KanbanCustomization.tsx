@@ -64,7 +64,7 @@ const COLORS = [
 ]
 
 export default function KanbanCustomization({ onUpdate }: KanbanCustomizationProps) {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [columns, setColumns] = useState<KanbanColumn[]>([])
   const [loading, setLoading] = useState(true)
   const [editingColumn, setEditingColumn] = useState<KanbanColumn | null>(null)
@@ -477,7 +477,7 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
     )
   }
 
-  if (!isAdmin) {
+  if (!(isAdmin || isTechnician)) {
     return (
       <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
         <div className="flex items-center">

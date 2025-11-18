@@ -136,7 +136,7 @@ const TABS: TabProps[] = [
 ]
 
 export default function Settings() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [activeTab, setActiveTab] = useState('status')
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -248,7 +248,7 @@ export default function Settings() {
     }
   }
 
-  if (!isAdmin) {
+  if (!(isAdmin || isTechnician)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
         <div className="max-w-4xl mx-auto">

@@ -122,6 +122,20 @@
   },
   "history": [
     {
+      "id": "1763047503681",
+      "action": "settings_reset",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-13T15:25:03.681Z",
+      "details": {}
+    },
+    {
+      "id": "1763047304594",
+      "action": "settings_reset",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-13T15:21:44.594Z",
+      "details": {}
+    },
+    {
       "id": "1763040867308",
       "action": "settings_reset",
       "user": "admin@empresa.com",
@@ -1135,28 +1149,8 @@
         "statusId": "1762778024487",
         "statusName": "Arquivado"
       }
-    },
-    {
-      "id": "1762781585368",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:05.368Z",
-      "details": {
-        "statusId": "1762778024341",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781583702",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:03.702Z",
-      "details": {
-        "statusId": "1762778024181",
-        "statusName": "Arquivado"
-      }
     }
   ],
   "createdAt": "2024-01-01T00:00:00.000Z",
-  "updatedAt": "2025-11-13T13:34:27.308Z"
+  "updatedAt": "2025-11-13T15:25:03.681Z"
 }

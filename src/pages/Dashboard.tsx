@@ -10,7 +10,7 @@ import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
 import { PlusCircle, Clock, CheckCircle, AlertCircle, TrendingUp, Users, List, Copy, ExternalLink } from 'lucide-react'
 
 export default function Dashboard() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const { viewMode, setViewMode } = useViewPreferences()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,8 +65,8 @@ export default function Dashboard() {
       const qs = boardId ? `?board_id=${encodeURIComponent(boardId)}` : ''
       const resp = await apiFetch(`/tickets${qs}`)
       const data = (resp.data || []) as Ticket[]
-      // Filter client-side for non-admins
-      const filtered = isAdmin ? data : data.filter(t => t.requester_id === user?.id || t.assigned_to_id === user?.id)
+      // Filter client-side: admins e técnicos veem todos; usuários veem só seus/atribuídos
+      const filtered = (isAdmin || isTechnician) ? data : data.filter(t => t.requester_id === user?.id || t.assigned_to_id === user?.id)
       setTickets(filtered)
       
       // Calculate stats
@@ -92,8 +92,13 @@ export default function Dashboard() {
 
       const hasNoBoard = data.some(t => !t.board_id)
       setShowNoBoardBanner(!boardId && hasNoBoard)
-    } catch (error) {
-      console.error('Error fetching tickets:', error)
+    } catch (error: any) {
+      const msg = String(error?.message || '')
+      if (msg.includes('401') || msg.toLowerCase().includes('não autenticado') || msg.toLowerCase().includes('token inválido')) {
+        setLoading(false)
+        return
+      }
+      console.warn('Falha ao obter tickets, exibindo estado atual')
     } finally {
       setLoading(false)
     }

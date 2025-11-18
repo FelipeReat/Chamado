@@ -83,7 +83,7 @@ const FIELD_TYPES = [
 ]
 
 export default function FormEditor({ onUpdate }: FormEditorProps) {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [fields, setFields] = useState<FormField[]>([])
   const [loading, setLoading] = useState(true)
   const [editingField, setEditingField] = useState<FormField | null>(null)
@@ -712,7 +712,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
     )
   }
 
-  if (!isAdmin) {
+  if (!(isAdmin || isTechnician)) {
     return (
       <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
         <div className="flex items-center">

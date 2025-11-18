@@ -10,6 +10,10 @@ export interface StoredUser {
   role: 'user' | 'technician' | 'admin'
   passwordHash: string
   created_at: string
+  preferences?: {
+    viewMode?: 'list' | 'kanban'
+    themeMode?: 'light' | 'dark' | 'system'
+  }
 }
 
 const dataDir = path.join(process.cwd(), 'data')
@@ -86,6 +90,21 @@ export function updateUser(id: string, updates: Partial<Omit<StoredUser, 'id' | 
     name: updates.name ?? current.name,
     role: (updates.role as any) ?? current.role,
     passwordHash,
+    preferences: updates.preferences ? { ...current.preferences, ...updates.preferences } : current.preferences,
+  }
+  users[idx] = next
+  saveUsers(users)
+  return next
+}
+
+export function updateUserPreferences(id: string, prefs: NonNullable<StoredUser['preferences']>): StoredUser | undefined {
+  const users = getUsers()
+  const idx = users.findIndex(u => u.id === id)
+  if (idx === -1) return undefined
+  const current = users[idx]
+  const next: StoredUser = {
+    ...current,
+    preferences: { ...current.preferences, ...prefs }
   }
   users[idx] = next
   saveUsers(users)

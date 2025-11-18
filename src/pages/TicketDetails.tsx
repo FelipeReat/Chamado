@@ -24,7 +24,7 @@ import {
 export default function TicketDetails() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isTechnician } = useAuth()
   const [ticket, setTicket] = useState<any>(null)
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState('')
@@ -35,6 +35,7 @@ export default function TicketDetails() {
   const [editMode, setEditMode] = useState(false)
   const [editData, setEditData] = useState<any>(null)
   const [technicians, setTechnicians] = useState<any[]>([])
+  const [usersBasic, setUsersBasic] = useState<any[]>([])
 
   useEffect(() => {
     if (id) {
@@ -50,8 +51,16 @@ export default function TicketDetails() {
     ;(async () => {
       try {
         const resp = await apiFetch('/users')
-        const techs = (resp.data || []).filter((u: any) => u.role === 'technician')
+        const dataAll = resp.data || []
+        const techs = dataAll.filter((u: any) => u.role === 'technician')
+        const users = dataAll.filter((u: any) => u.role === 'user')
         setTechnicians(techs)
+        setUsersBasic(users)
+        setTicket(prev => prev ? { 
+          ...prev, 
+          assigned_to: techs.find((t: any) => t.id === prev.assigned_to_id) || prev.assigned_to,
+          requester: users.find((u: any) => u.id === prev.requester_id) || prev.requester
+        } : prev)
       } catch {}
     })()
   }, [id])
@@ -145,10 +154,10 @@ export default function TicketDetails() {
           },
           body: JSON.stringify({
             to: ticket.requester.email,
-            subject: `Novo Comentário no Chamado: ${ticket.title}`,
+            subject: `Novo Comentário no Chamado: ${ticket?.title || ''}`,
             body: `
               <h2>Novo Comentário</h2>
-              <p><strong>Chamado:</strong> ${ticket.title}</p>
+              <p><strong>Chamado:</strong> ${ticket?.title || ''}</p>
               <p><strong>Comentário de:</strong> ${comment.user?.name || comment.user?.email}</p>
               <p><strong>Comentário:</strong> ${comment.content}</p>
               <p><a href="${window.location.origin}/chamados/${ticket?.id}">Clique aqui para visualizar o chamado</a></p>
@@ -167,10 +176,10 @@ export default function TicketDetails() {
           },
           body: JSON.stringify({
             to: ticket.assigned_to.email,
-            subject: `Novo Comentário no Chamado: ${ticket.title}`,
+            subject: `Novo Comentário no Chamado: ${ticket?.title || ''}`,
             body: `
               <h2>Novo Comentário</h2>
-              <p><strong>Chamado:</strong> ${ticket.title}</p>
+              <p><strong>Chamado:</strong> ${ticket?.title || ''}</p>
               <p><strong>Comentário de:</strong> ${comment.user?.name || comment.user?.email}</p>
               <p><strong>Comentário:</strong> ${comment.content}</p>
               <p><a href="${window.location.origin}/chamados/${ticket?.id}">Clique aqui para visualizar o chamado</a></p>
@@ -198,10 +207,10 @@ export default function TicketDetails() {
           },
           body: JSON.stringify({
             to: ticket.requester.email,
-            subject: `Status do Chamado Atualizado: ${ticket.title}`,
+            subject: `Status do Chamado Atualizado: ${ticket?.title || ''}`,
             body: `
               <h2>Status do Chamado Atualizado</h2>
-              <p><strong>Chamado:</strong> ${ticket.title}</p>
+              <p><strong>Chamado:</strong> ${ticket?.title || ''}</p>
               <p><strong>Novo Status:</strong> ${statusLabel}</p>
               <p><a href="${window.location.origin}/chamados/${ticket?.id}">Clique aqui para visualizar o chamado</a></p>
             `
@@ -256,8 +265,8 @@ export default function TicketDetails() {
     )
   }
 
-  const canEdit = isAdmin || ticket.requester_id === user?.id
-  const canChangeStatus = isAdmin || ticket.assigned_to_id === user?.id
+  const canEdit = isAdmin || (ticket?.requester_id === user?.id)
+  const canChangeStatus = isAdmin || isTechnician || (ticket?.assigned_to_id === user?.id)
   const canTechnicianEdit = user?.role === 'technician'
   const allowEdit = canEdit || canTechnicianEdit
 
@@ -275,13 +284,24 @@ export default function TicketDetails() {
             </Link>
             
             {allowEdit && (
-              <Link
-                to={`/chamados/${ticket.id}/editar`}
+              <button
+                onClick={() => {
+                  if (!editMode && ticket) setEditData({
+                    title: ticket.title,
+                    description: ticket.description,
+                    category: ticket.category,
+                    priority: ticket.priority,
+                    assigned_to_id: ticket.assigned_to_id || '',
+                    requester_id: ticket.requester_id || '',
+                    custom_fields: ticket.custom_fields || {}
+                  })
+                  setEditMode(prev => !prev)
+                }}
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 <Edit className="w-4 h-4 mr-1" />
-                Editar
-              </Link>
+                {editMode ? 'Sair Edição' : 'Editar'}
+              </button>
             )}
           </div>
 
@@ -289,7 +309,7 @@ export default function TicketDetails() {
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                {ticket.title}
+                {ticket?.title || ''}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border ${getPriorityColor(ticket.priority)}`}>
@@ -380,33 +400,14 @@ export default function TicketDetails() {
             </div>
           </div>
 
-          {allowEdit && (
-            <div className="mb-4">
-              <button
-                onClick={() => {
-                  if (!editMode) setEditData({
-                    title: ticket.title,
-                    description: ticket.description,
-                    category: ticket.category,
-                    priority: ticket.priority,
-                    assigned_to_id: ticket.assigned_to_id || '',
-                    custom_fields: ticket.custom_fields || {}
-                  })
-                  setEditMode(!editMode)
-                }}
-                className="px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                {editMode ? 'Sair Edição' : 'Editar Informações'}
-              </button>
-            </div>
-          )}
+          
 
           {editMode && (
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Título</label>
                 <input
-                  value={editData.title}
+                  value={editData?.title ?? ''}
                   onChange={(e) => setEditData({ ...editData, title: e.target.value })}
                   className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
                 />
@@ -415,7 +416,7 @@ export default function TicketDetails() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Descrição</label>
                 <textarea
                   rows={4}
-                  value={editData.description}
+                  value={editData?.description ?? ''}
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                   className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
                 />
@@ -424,7 +425,7 @@ export default function TicketDetails() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
                   <select
-                    value={editData.category}
+                    value={editData?.category ?? ''}
                     onChange={(e) => setEditData({ ...editData, category: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
                   >
@@ -436,7 +437,7 @@ export default function TicketDetails() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Prioridade</label>
                   <select
-                    value={editData.priority}
+                    value={editData?.priority ?? ''}
                     onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
                   >
@@ -446,20 +447,36 @@ export default function TicketDetails() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuído a</label>
-                <select
-                  value={editData.assigned_to_id || ''}
-                  onChange={(e) => setEditData({ ...editData, assigned_to_id: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                >
-                  <option value="">Não atribuído</option>
-                  {technicians.map((t) => (
-                    <option key={t.id} value={t.id}>{t.user_metadata?.full_name || t.name || t.email}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Solicitante</label>
+                  <select
+                    value={editData?.requester_id || ''}
+                    onChange={(e) => setEditData({ ...editData, requester_id: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                    disabled={!(isAdmin || isTechnician)}
+                  >
+                    <option value="">Não atribuído</option>
+                    {usersBasic.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuído a</label>
+                  <select
+                    value={editData?.assigned_to_id || ''}
+                    onChange={(e) => setEditData({ ...editData, assigned_to_id: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                  >
+                    <option value="">Não atribuído</option>
+                    {technicians.map((t) => (
+                      <option key={t.id} value={t.id}>{t.user_metadata?.full_name || t.name || t.email}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              {editData.custom_fields && Object.keys(editData.custom_fields || {}).length > 0 && (
+              {editData && editData.custom_fields && Object.keys(editData.custom_fields || {}).length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Campos Personalizados</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
@@ -467,7 +484,7 @@ export default function TicketDetails() {
                       <div key={key}>
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-300">{key}</label>
                         <input
-                          value={Array.isArray(value) ? value.join(', ') : String(value)}
+                          value={Array.isArray(value) ? value.join(', ') : String(value ?? '')}
                           onChange={(e) => setEditData({ ...editData, custom_fields: { ...editData.custom_fields, [key]: e.target.value } })}
                           className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
                         />
@@ -484,8 +501,19 @@ export default function TicketDetails() {
                 <button
                   onClick={async () => {
                     try {
-                      const resp = await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(editData) })
-                      setTicket(resp.data)
+                      const payload = { 
+                        ...editData, 
+                        assigned_to_id: editData?.assigned_to_id ? editData.assigned_to_id : null,
+                        requester_id: editData?.requester_id ? editData.requester_id : null
+                      }
+                      const resp = await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+                      const updated = resp.data
+                      const assigned = technicians.find((t: any) => t.id === updated.assigned_to_id)
+                      const requester = usersBasic.find((u: any) => u.id === updated.requester_id)
+                      setTicket(() => {
+                        const next = assigned ? { ...updated, assigned_to: assigned } : updated
+                        return requester ? { ...next, requester } : next
+                      })
                       setEditMode(false)
                     } catch (e) {
                       console.error('Erro ao salvar alterações do chamado:', e)

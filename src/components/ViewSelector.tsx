@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiFetch } from '../lib/api'
 import { List, LayoutGrid, Monitor, Moon, Sun } from 'lucide-react'
 
 export type ViewMode = 'list' | 'kanban'
@@ -189,23 +190,37 @@ export default function ViewSelector({
 
 // Hook customizado para gerenciar preferências
 export function useViewPreferences() {
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban')
   const [themeMode, setThemeMode] = useState<ThemeMode>('system')
 
   useEffect(() => {
-    // Carregar preferências do localStorage
-    const preferences = loadViewPreferences()
-    if (preferences) {
-      setViewMode(preferences.viewMode)
-      if (preferences.themeMode) {
-        setThemeMode(preferences.themeMode)
+    ;(async () => {
+      try {
+        // Tentar carregar preferências do servidor (se autenticado)
+        const resp = await apiFetch('/users/me/preferences')
+        const prefs = (resp as any)?.data || null
+        if (prefs) {
+          if (prefs.viewMode) setViewMode(prefs.viewMode)
+          if (prefs.themeMode) setThemeMode(prefs.themeMode)
+          saveViewPreferences({ viewMode: prefs.viewMode || 'kanban', themeMode: prefs.themeMode || 'system' })
+          return
+        }
+      } catch {}
+      // Fallback para localStorage
+      const preferences = loadViewPreferences()
+      if (preferences) {
+        setViewMode(preferences.viewMode)
+        if (preferences.themeMode) setThemeMode(preferences.themeMode)
       }
-    }
+    })()
   }, [])
 
   useEffect(() => {
     // Salvar preferências quando mudarem
     saveViewPreferences({ viewMode, themeMode })
+    ;(async () => {
+      try { await apiFetch('/users/me/preferences', { method: 'PUT', body: JSON.stringify({ viewMode, themeMode }) }) } catch {}
+    })()
   }, [viewMode, themeMode])
 
   return { viewMode, setViewMode, themeMode, setThemeMode }
