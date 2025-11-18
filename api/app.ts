@@ -24,8 +24,8 @@ import boardsRoutes from './routes/boards.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// load env
-dotenv.config()
+// load env (override explicit env to ensure consistent deploy config)
+dotenv.config({ override: true })
 
 const app: express.Application = express()
 
@@ -71,6 +71,7 @@ app.use(
   },
 )
 
+
 /**
  * error handler middleware
  */
@@ -82,13 +83,15 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 })
 
 /**
- * 404 handler
+ * 404 handler apenas para /api/*
  */
-app.use((req: Request, res: Response) => {
+app.use('/api/*', (req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     error: 'API not found',
   })
 })
+
+// Sem servir estático; frontend é publicado no IIS
 
 export default app

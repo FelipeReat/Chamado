@@ -1,4 +1,4 @@
-import { getPool } from './pool'
+import { getPool } from './pool.js'
 
 export async function dbGetTickets(boardId?: string) {
   const pool = getPool()
