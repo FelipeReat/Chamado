@@ -12,6 +12,7 @@ export default function NewTicket() {
   const [loading, setLoading] = useState(false)
   const [technicians, setTechnicians] = useState<any[]>([])
   const [usersBasic, setUsersBasic] = useState<any[]>([])
+  const [departments, setDepartments] = useState<string[]>([])
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -34,20 +35,36 @@ export default function NewTicket() {
 
   useEffect(() => {
     fetchTechnicians()
-    ;(async () => {
+    const loadSettings = async () => {
       try {
         const settings = await apiFetch('/settings')
         const fields = (settings as any)?.formFields || []
-        const activeRaw = fields.filter((f: any) => f.isActive).sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-        const byName: Record<string, any> = {}
-        activeRaw.forEach((f: any) => { byName[f.name] = f })
-        const active = Object.values(byName)
+        const activeRaw = fields
+          .filter((f: any) => f.isActive)
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+        const byNameActive: Record<string, any> = {}
+        activeRaw.forEach((f: any) => { byNameActive[f.name] = f })
+        const active = Object.values(byNameActive)
         setDynamicFields(active)
-        const cfg: Record<string, any> = {}
-        active.forEach((f: any) => { cfg[f.name] = f })
-        setFieldConfigs(cfg)
+        const byNameAll: Record<string, any> = {}
+        fields.forEach((f: any) => { byNameAll[f.name] = f })
+        setFieldConfigs(byNameAll)
       } catch {}
-    })()
+    }
+    const loadDepartments = async () => {
+      try {
+        const resp = await apiFetch('/public/departments')
+        const list = Array.isArray((resp as any)?.data) ? (resp as any).data : []
+        setDepartments(list)
+      } catch {}
+    }
+    loadSettings()
+    loadDepartments()
+    const onSettingsUpdated = () => loadSettings()
+    try { window.addEventListener('settingsUpdated', onSettingsUpdated as any) } catch {}
+    return () => {
+      try { window.removeEventListener('settingsUpdated', onSettingsUpdated as any) } catch {}
+    }
   }, [])
 
   const fetchTechnicians = async () => {
@@ -155,7 +172,27 @@ export default function NewTicket() {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
+          {fieldConfigs['requester_id']?.visibleInternal !== false && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{fieldConfigs['requester_id']?.label || 'Solicitante (usuário)'}</label>
+            <select
+              value={(customValues as any)['requester_id'] || ''}
+              onChange={(e) => setCustomValues({ ...customValues, ['requester_id']: e.target.value })}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+            >
+              <option value="">Selecionar usuário...</option>
+              {usersBasic.map((u: any) => (
+                <option key={u.id} value={u.id}>{u.name || u.email}</option>
+              ))}
+            </select>
+          </div>
+          )}
           {/* Title */}
+          {(() => {
+            const cfg = fieldConfigs['title']
+            const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
+            if (!show) return null
+            return (
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               {fieldConfigs['title']?.label || 'Título do Chamado'}
@@ -176,8 +213,15 @@ export default function NewTicket() {
               />
             </div>
           </div>
+            )
+          })()}
 
           {/* Description */}
+          {(() => {
+            const cfg = fieldConfigs['description']
+            const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
+            if (!show) return null
+            return (
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               {fieldConfigs['description']?.label || 'Descrição Detalhada'}
@@ -195,9 +239,16 @@ export default function NewTicket() {
               />
             </div>
           </div>
+            )
+          })()}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Category */}
+            {(() => {
+              const cfg = fieldConfigs['category']
+              const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
+              if (!show) return null
+              return (
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {fieldConfigs['category']?.label || 'Categoria'}
@@ -219,8 +270,15 @@ export default function NewTicket() {
                 ))}
               </select>
             </div>
+              )
+            })()}
 
             {/* Priority */}
+            {(() => {
+              const cfg = fieldConfigs['priority']
+              const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
+              if (!show) return null
+              return (
             <div>
               <label htmlFor="priority" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {fieldConfigs['priority']?.label || 'Prioridade'}
@@ -253,11 +311,24 @@ export default function NewTicket() {
                 </span>
               </div>
             </div>
+              )
+            })()}
           </div>
 
           {(() => {
-            const builtinNames = ['title','description','category','priority','assigned_to_id']
-            const extraFields = dynamicFields.filter((f: any) => !builtinNames.includes(String(f.name)) && (f.visibleInternal !== false))
+            const normalize = (s: string) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/g, '')
+            const reserved = new Set([
+              'title','titulo','titulodochamado',
+              'description','descricao','descricaodetalhada',
+              'category','categoria',
+              'priority','prioridade',
+              'assignedtoid','assigned_to_id','atribuir','atribuira',
+              'requesterid','requester_id','solicitante'
+            ])
+            const extraFields = dynamicFields.filter((f: any) => {
+              const n = normalize(f.name)
+              return !reserved.has(n) && (f.visibleInternal !== false)
+            })
             return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {extraFields.map((field) => (
@@ -271,6 +342,109 @@ export default function NewTicket() {
                     type="text"
                     value={customValues[field.name] ?? ''}
                     onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly={Boolean(field.readonlyInternal)}
+                  />
+                )}
+                {field.type === 'phone' && (
+                  <input
+                    type="tel"
+                    value={customValues[field.name] ?? ''}
+                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                    required={Boolean(field.required)}
+                    pattern={(field.validation as any)?.pattern || undefined}
+                    placeholder={field.placeholder || '(00) 00000-0000'}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly={Boolean(field.readonlyInternal)}
+                  />
+                )}
+                {field.type === 'url' && (
+                  <input
+                    type="url"
+                    value={customValues[field.name] ?? ''}
+                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                    required={Boolean(field.required)}
+                    pattern={(field.validation as any)?.pattern || undefined}
+                    placeholder={field.placeholder || 'https://'}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly={Boolean(field.readonlyInternal)}
+                  />
+                )}
+                {field.type === 'password' && (
+                  <input
+                    type="password"
+                    value={customValues[field.name] ?? ''}
+                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                    required={Boolean(field.required)}
+                    placeholder={field.placeholder || ''}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly={Boolean(field.readonlyInternal)}
+                  />
+                )}
+                {field.type === 'currency' && (
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">R$</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={(field.validation as any)?.min ?? undefined}
+                      max={(field.validation as any)?.max ?? undefined}
+                      value={customValues[field.name] ?? ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                      required={Boolean(field.required)}
+                      className="w-full pl-12 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      readOnly={Boolean(field.readonlyInternal)}
+                    />
+                  </div>
+                )}
+                {field.type === 'time' && (
+                  <input
+                    type="time"
+                    value={customValues[field.name] ?? ''}
+                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                    required={Boolean(field.required)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    readOnly={Boolean(field.readonlyInternal)}
+                  />
+                )}
+                {field.type === 'department' && (
+                  Array.isArray(field.options) && field.options.length > 0 ? (
+                    <select
+                      value={customValues[field.name] ?? ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                      required={Boolean(field.required)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                      disabled={Boolean(field.readonlyInternal)}
+                    >
+                      <option value="">Selecione uma opção</option>
+                      {(field.options || []).map((opt: string, i: number) => (
+                        <option key={i} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      value={customValues[field.name] ?? ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                      required={Boolean(field.required)}
+                      className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                      disabled={Boolean(field.readonlyInternal)}
+                    >
+                      <option value="">Selecione uma opção</option>
+                      {departments.map((opt: string, i: number) => (
+                        <option key={i} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  )
+                )}
+                {field.type === 'location' && (
+                  <input
+                    type="text"
+                    value={customValues[field.name] ?? ''}
+                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
+                    required={Boolean(field.required)}
+                    placeholder={field.placeholder || 'Endereço completo'}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     readOnly={Boolean(field.readonlyInternal)}
                   />
@@ -385,6 +559,11 @@ export default function NewTicket() {
           })()}
 
           {/* Assign to Technician */}
+          {(() => {
+            const cfg = fieldConfigs['assigned_to_id']
+            const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
+            if (!show) return null
+            return (
           <div>
             <label htmlFor="assigned_to_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               {fieldConfigs['assigned_to_id']?.label || 'Atribuir a'}
@@ -411,6 +590,8 @@ export default function NewTicket() {
               </select>
             </div>
           </div>
+            )
+          })()}
 
           {/* Submit Button */}
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">

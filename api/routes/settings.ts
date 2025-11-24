@@ -793,4 +793,119 @@ router.post('/settings/import', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
+// -------------------------
+// Departments (Departamentos globais)
+// -------------------------
+
+// GET /api/settings/departments - listar departamentos
+router.get('/settings/departments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const settings = await readSettings()
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+    const list = Array.isArray(settings.departments) ? settings.departments : []
+    res.json({ success: true, data: list })
+  } catch (error) {
+    console.error('Erro ao obter departamentos:', error)
+    res.status(500).json({ error: 'Erro ao obter departamentos' })
+  }
+})
+
+// PUT /api/settings/departments - definir lista completa
+router.put('/settings/departments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, departments } = req.body || {}
+    const settings = await readSettings()
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+    const list = Array.isArray(departments) ? departments.map((d: any) => String(d)).filter(Boolean) : []
+    settings.departments = list
+    addToHistory(settings, 'departments_set', user?.email || 'sistema', { count: list.length })
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar departamentos' })
+    }
+    res.json({ success: true, data: settings.departments })
+  } catch (error) {
+    console.error('Erro ao definir departamentos:', error)
+    res.status(500).json({ error: 'Erro ao definir departamentos' })
+  }
+})
+
+// POST /api/settings/departments - adicionar um departamento
+router.post('/settings/departments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, name } = req.body || {}
+    const settings = await readSettings()
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+    const n = String(name || '').trim()
+    if (!n) return res.status(400).json({ error: 'Nome inválido' })
+    const list = Array.isArray(settings.departments) ? settings.departments : []
+    if (!list.includes(n)) list.push(n)
+    settings.departments = list
+    addToHistory(settings, 'department_added', user?.email || 'sistema', { name: n })
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar departamento' })
+    }
+    res.json({ success: true, data: settings.departments })
+  } catch (error) {
+    console.error('Erro ao adicionar departamento:', error)
+    res.status(500).json({ error: 'Erro ao adicionar departamento' })
+  }
+})
+
+// DELETE /api/settings/departments/:name - remover departamento
+router.delete('/settings/departments/:name', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user } = req.body || {}
+    const { name } = req.params
+    const settings = await readSettings()
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+    const list = Array.isArray(settings.departments) ? settings.departments : []
+    const idx = list.findIndex((d: any) => String(d) === String(name))
+    if (idx === -1) return res.status(404).json({ error: 'Departamento não encontrado' })
+    const removed = list.splice(idx, 1)[0]
+    settings.departments = list
+    addToHistory(settings, 'department_removed', user?.email || 'sistema', { name: removed })
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar departamentos' })
+    }
+    res.json({ success: true, data: settings.departments })
+  } catch (error) {
+    console.error('Erro ao remover departamento:', error)
+    res.status(500).json({ error: 'Erro ao remover departamento' })
+  }
+})
+
+// POST /api/settings/departments/reorder - reordenar departamentos
+router.post('/settings/departments/reorder', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { user, departments } = req.body || {}
+    const settings = await readSettings()
+    if (!settings) {
+      return res.status(500).json({ error: 'Erro ao carregar configurações' })
+    }
+    const current = Array.isArray(settings.departments) ? settings.departments : []
+    const next = Array.isArray(departments) ? departments.map(String).filter(d => current.includes(d)) : current
+    settings.departments = next
+    addToHistory(settings, 'departments_reordered', user?.email || 'sistema', { newOrder: next })
+    const saved = await saveSettings(settings)
+    if (!saved) {
+      return res.status(500).json({ error: 'Erro ao salvar departamentos' })
+    }
+    res.json({ success: true, data: settings.departments })
+  } catch (error) {
+    console.error('Erro ao reordenar departamentos:', error)
+    res.status(500).json({ error: 'Erro ao reordenar departamentos' })
+  }
+})
+
 export default router

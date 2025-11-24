@@ -119,4 +119,16 @@ router.post('/tickets', async (req, res) => {
   }
 })
 
+// Public departments listing from settings or defaults
+router.get('/departments', async (req, res) => {
+  try {
+    const settings = await readSettings()
+    const list = Array.isArray(settings?.departments) ? settings!.departments : ['Tecnologia', 'Vendas', 'Suporte']
+    res.json({ success: true, data: list })
+  } catch (error) {
+    console.error('Erro ao listar departamentos públicos:', error)
+    res.status(500).json({ success: false, error: 'Falha ao listar departamentos' })
+  }
+})
+
 export default router

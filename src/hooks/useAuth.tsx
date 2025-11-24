@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 export interface User {
   id: string
@@ -21,6 +21,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const inactivityTimerRef = useRef<number | undefined>(undefined)
+  const inactivityMs = 5 * 60 * 1000
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token')
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem('auth_token')
+    try { localStorage.setItem('auth_logout', String(Date.now())) } catch {}
     setUser(null)
   }
 
@@ -70,6 +73,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin,
     isTechnician,
   }
+
+  useEffect(() => {
+    if (!user) {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current)
+        inactivityTimerRef.current = undefined
+      }
+      return
+    }
+    const resetTimer = () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      inactivityTimerRef.current = window.setTimeout(() => {
+        signOut()
+      }, inactivityMs)
+    }
+    const handler = () => resetTimer()
+    const events = ['mousemove','mousedown','keydown','scroll','touchstart','wheel','click']
+    events.forEach((ev) => window.addEventListener(ev, handler, { passive: true } as any))
+    resetTimer()
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, handler as any))
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      inactivityTimerRef.current = undefined
+    }
+  }, [user])
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'auth_logout') signOut()
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   return (
     <AuthContext.Provider value={value}>

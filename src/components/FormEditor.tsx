@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { 
@@ -91,6 +92,9 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
   const [draggedField, setDraggedField] = useState<string | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [savingOrder, setSavingOrder] = useState(false)
 
   useEffect(() => {
     fetchFields()
@@ -191,27 +195,30 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
 
   const handleDeleteField = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este campo?')) return
-    
     try {
-      const target = fields.find(f => f.id === id)
       const isBuiltin = String(id).startsWith('builtin:')
-      let deleteId = id
       if (isBuiltin) {
         const name = String(id).split(':')[1]
         const existing = fields.find(f => f.name === name && !String(f.id).startsWith('builtin:'))
-        if (!existing) {
-          alert('Campos base não podem ser excluídos. Edite o campo ou desative-o nas Configurações.')
-          return
+        if (existing) {
+          await apiFetch(`/settings/form-fields/${existing.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ user, field: { isActive: false } })
+          })
+        } else {
+          await apiFetch(`/settings/form-fields`, {
+            method: 'POST',
+            body: JSON.stringify({ user, field: { name, isActive: false } })
+          })
         }
-        deleteId = existing.id
+        setFields(fields.filter(f => f.name !== name))
+      } else {
+        await apiFetch(`/settings/form-fields/${id}`, {
+          method: 'DELETE',
+          body: JSON.stringify({ user })
+        })
+        setFields(fields.filter(f => f.id !== id))
       }
-
-      await apiFetch(`/settings/form-fields/${deleteId}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ user })
-      })
-      
-      setFields(fields.filter(f => f.id !== deleteId))
       onUpdate()
       try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
     } catch (error) {
@@ -258,6 +265,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
     
     // Salvar no backend
     try {
+      setSavingOrder(true)
       const fieldIds = reorderedFields.map(f => f.id)
       await apiFetch('/settings/form-fields/reorder', {
         method: 'POST',
@@ -265,11 +273,14 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
       })
       onUpdate()
       try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
+      try { toast.success('Ordem dos campos atualizada') } catch {}
     } catch (error) {
       console.error('Erro ao reordenar campos:', error)
       // Reverter em caso de erro
       fetchFields()
+      try { toast.error('Falha ao salvar nova ordem') } catch {}
     }
+    setSavingOrder(false)
   }
 
   const getIconComponent = (iconName: string) => {
@@ -751,7 +762,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
           </button>
           
           <button
-            onClick={() => setIsCreating(true)}
+            onClick={() => { setIsCreating(true); setShowCreateModal(true) }}
             className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -760,12 +771,21 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
         </div>
       </div>
 
-      {isCreating && (
-        <FieldForm
-          field={null}
-          onSave={handleCreateField}
-          onCancel={() => setIsCreating(false)}
-        />
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Novo Campo</h3>
+            </div>
+            <div className="px-6 py-4">
+              <FieldForm
+                field={null}
+                onSave={handleCreateField}
+                onCancel={() => { setIsCreating(false); setShowCreateModal(false) }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {loading ? (
@@ -798,28 +818,20 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
               </div>
             </div>
           ) : (
-            fields.map((field, index) => (
+            fields.filter(f => f.isActive).map((field, index) => (
               <div
                 key={field.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, field.id)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
-                className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 cursor-move ${
+                onDoubleClick={() => { setEditingField(field); setShowEditModal(true) }}
+                className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 ${
                   dragOverIndex === index ? 'border-blue-400 dark:border-blue-500' : ''
                 } transition-all duration-200`}
               >
-                {editingField?.id === field.id ? (
-                  <FieldForm
-                    field={field}
-                    onSave={(data) => handleUpdateField(field.id, data)}
-                    onCancel={() => setEditingField(null)}
-                  />
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <GripVertical className="w-5 h-5 text-gray-400 cursor-move" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                      <span draggable={!savingOrder} onDragStart={(e) => handleDragStart(e, field.id)} className={`inline-flex ${savingOrder ? 'opacity-50 cursor-not-allowed' : ''}`}><GripVertical className="w-5 h-5 text-gray-400" /></span>
                       
                       <div className="flex items-center space-x-2">
                         {(() => {
@@ -846,7 +858,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
                       </span>
                       
                       <button
-                        onClick={() => setEditingField(field)}
+                        onClick={() => { setEditingField(field); setShowEditModal(true) }}
                         className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         title="Editar campo"
                       >
@@ -862,7 +874,6 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
                       </button>
                     </div>
                   </div>
-                )}
               </div>
             ))
           )}
@@ -872,6 +883,22 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
       {fields.length === 0 && !loading && !previewMode && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           Nenhum campo encontrado.
+        </div>
+      )}
+      {showEditModal && editingField && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Editar Campo</h3>
+            </div>
+            <div className="px-6 py-4">
+              <FieldForm
+                field={editingField}
+                onSave={(data) => handleUpdateField(editingField.id, data)}
+                onCancel={() => { setEditingField(null); setShowEditModal(false) }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

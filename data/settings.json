@@ -30,11 +30,53 @@
   ],
   "formFields": [
     {
+      "id": "1763753919170",
+      "name": "name",
+      "label": "name",
+      "type": "text",
+      "required": false,
+      "order": 1,
+      "isActive": false,
+      "validation": {},
+      "options": [],
+      "placeholder": "",
+      "helpText": "",
+      "defaultValue": null
+    },
+    {
+      "id": "1764010440279",
+      "name": "departamento_ap",
+      "label": "Departamento",
+      "type": "department",
+      "required": false,
+      "order": 2,
+      "isActive": true,
+      "validation": {},
+      "options": [],
+      "placeholder": "Departamento",
+      "helpText": "",
+      "defaultValue": ""
+    },
+    {
+      "id": "1763994459002",
+      "name": "email",
+      "label": "email",
+      "type": "text",
+      "required": false,
+      "order": 3,
+      "isActive": false,
+      "validation": {},
+      "options": [],
+      "placeholder": "",
+      "helpText": "",
+      "defaultValue": null
+    },
+    {
       "id": "title",
       "name": "Título",
       "type": "text",
       "required": true,
-      "order": 1,
+      "order": 4,
       "isDefault": true,
       "validation": {
         "minLength": 5,
@@ -46,7 +88,7 @@
       "name": "Descrição",
       "type": "textarea",
       "required": true,
-      "order": 2,
+      "order": 5,
       "isDefault": true,
       "validation": {
         "minLength": 10,
@@ -58,7 +100,7 @@
       "name": "Categoria",
       "type": "select",
       "required": true,
-      "order": 3,
+      "order": 6,
       "isDefault": true,
       "options": [
         "Bug",
@@ -72,7 +114,7 @@
       "name": "Prioridade",
       "type": "select",
       "required": true,
-      "order": 4,
+      "order": 7,
       "isDefault": true,
       "options": [
         "Baixa",
@@ -80,6 +122,24 @@
         "Alta",
         "Crítica"
       ]
+    },
+    {
+      "id": "1763994475529",
+      "name": "teste",
+      "label": "testeee",
+      "type": "text",
+      "required": false,
+      "order": 8,
+      "isActive": true,
+      "validation": {},
+      "options": [],
+      "placeholder": "testeteteste",
+      "helpText": "teste",
+      "defaultValue": "",
+      "visiblePublic": true,
+      "visibleInternal": true,
+      "readonlyPublic": false,
+      "readonlyInternal": false
     }
   ],
   "kanbanColumns": [
@@ -121,6 +181,470 @@
     "allowPublicTickets": true
   },
   "history": [
+    {
+      "id": "1764012364927",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T19:26:04.927Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1764010440279",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:priority",
+          "builtin:assigned_to_id",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010625443",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:57:05.443Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:assigned_to_id",
+          "builtin:priority",
+          "1764010440279",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010624116",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:57:04.116Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:assigned_to_id",
+          "builtin:priority",
+          "1764010440279",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010620433",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:57:00.433Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:assigned_to_id",
+          "builtin:priority",
+          "1764010440279",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010618586",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:56:58.586Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1763994459002",
+          "builtin:title",
+          "builtin:category",
+          "builtin:description",
+          "builtin:priority",
+          "builtin:assigned_to_id",
+          "1764010440279",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010616410",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:56:56.410Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1764010440279",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:priority",
+          "builtin:assigned_to_id",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010610929",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:56:50.929Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1763994459002",
+          "builtin:title",
+          "builtin:category",
+          "builtin:priority",
+          "builtin:assigned_to_id",
+          "builtin:description",
+          "1764010440279",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010497878",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:54:57.878Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1764010440279",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:priority",
+          "builtin:assigned_to_id",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010494057",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:54:54.057Z",
+      "details": {
+        "newOrder": [
+          "1763753919170",
+          "1764010440279",
+          "1763994459002",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:priority",
+          "builtin:assigned_to_id",
+          "title",
+          "description",
+          "category",
+          "priority",
+          "1763994475529"
+        ]
+      }
+    },
+    {
+      "id": "1764010440279",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T18:54:00.279Z",
+      "details": {
+        "fieldId": "1764010440279",
+        "fieldName": "departamento_ap"
+      }
+    },
+    {
+      "id": "1764010376957",
+      "action": "departments_set",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:56.957Z",
+      "details": {
+        "count": 7
+      }
+    },
+    {
+      "id": "1764010364448",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:44.448Z",
+      "details": {
+        "name": "Diretoria"
+      }
+    },
+    {
+      "id": "1764010359891",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:39.891Z",
+      "details": {
+        "name": "Marketing"
+      }
+    },
+    {
+      "id": "1764010346852",
+      "action": "departments_set",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:26.852Z",
+      "details": {
+        "count": 5
+      }
+    },
+    {
+      "id": "1764010346502",
+      "action": "departments_set",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:26.502Z",
+      "details": {
+        "count": 5
+      }
+    },
+    {
+      "id": "1764010345501",
+      "action": "departments_set",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:25.501Z",
+      "details": {
+        "count": 5
+      }
+    },
+    {
+      "id": "1764010343065",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:23.065Z",
+      "details": {
+        "name": "Operacional"
+      }
+    },
+    {
+      "id": "1764010323935",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:52:03.935Z",
+      "details": {
+        "name": "Administrativo"
+      }
+    },
+    {
+      "id": "1764010317050",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:51:57.050Z",
+      "details": {
+        "name": "Logistica"
+      }
+    },
+    {
+      "id": "1764010313084",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:51:53.084Z",
+      "details": {
+        "name": "T.I"
+      }
+    },
+    {
+      "id": "1764010304735",
+      "action": "department_added",
+      "user": "sistema",
+      "timestamp": "2025-11-24T18:51:44.735Z",
+      "details": {
+        "name": "Comercial"
+      }
+    },
+    {
+      "id": "1763994504603",
+      "action": "form_field_updated",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T14:28:24.603Z",
+      "details": {
+        "fieldId": "1763994475529",
+        "fieldName": "teste"
+      }
+    },
+    {
+      "id": "1763994475529",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T14:27:55.529Z",
+      "details": {
+        "fieldId": "1763994475529",
+        "fieldName": "teste"
+      }
+    },
+    {
+      "id": "1763994459002",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-24T14:27:39.002Z",
+      "details": {
+        "fieldId": "1763994459002",
+        "fieldName": "email"
+      }
+    },
+    {
+      "id": "1763753919170",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T19:38:39.170Z",
+      "details": {
+        "fieldId": "1763753919170",
+        "fieldName": "name"
+      }
+    },
+    {
+      "id": "1763727664565",
+      "action": "settings_reset",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:21:04.565Z",
+      "details": {}
+    },
+    {
+      "id": "1763727466498",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:46.498Z",
+      "details": {
+        "fieldId": "1763727466498",
+        "fieldName": "assigned_to_id"
+      }
+    },
+    {
+      "id": "1763727465194",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:45.194Z",
+      "details": {
+        "fieldId": "1763727465194",
+        "fieldName": "priority"
+      }
+    },
+    {
+      "id": "1763727464078",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:44.078Z",
+      "details": {
+        "fieldId": "1763727464078",
+        "fieldName": "category"
+      }
+    },
+    {
+      "id": "1763727462774",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:42.774Z",
+      "details": {
+        "fieldId": "1763727462774",
+        "fieldName": "description"
+      }
+    },
+    {
+      "id": "1763727461260",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:41.260Z",
+      "details": {
+        "fieldId": "1763727461260",
+        "fieldName": "title"
+      }
+    },
+    {
+      "id": "1763727459457",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:39.457Z",
+      "details": {
+        "fieldId": "1763727459457",
+        "fieldName": "email"
+      }
+    },
+    {
+      "id": "1763727454235",
+      "action": "form_field_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:17:34.235Z",
+      "details": {
+        "fieldId": "1763727454235",
+        "fieldName": "name"
+      }
+    },
+    {
+      "id": "1763727036054",
+      "action": "settings_reset",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:10:36.054Z",
+      "details": {}
+    },
+    {
+      "id": "1763727033848",
+      "action": "status_created",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:10:33.848Z",
+      "details": {
+        "statusId": "1763727033848",
+        "statusName": "teste"
+      }
+    },
+    {
+      "id": "1763727024353",
+      "action": "settings_reset",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:10:24.353Z",
+      "details": {}
+    },
+    {
+      "id": "1763727007160",
+      "action": "settings_reset",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-11-21T12:10:07.160Z",
+      "details": {}
+    },
     {
       "id": "1763047503681",
       "action": "settings_reset",
@@ -779,378 +1303,17 @@
         "statusId": "1762779867043",
         "statusName": "testes"
       }
-    },
-    {
-      "id": "1762781636419",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:56.419Z",
-      "details": {
-        "statusId": "1762779866859",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781635148",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:55.148Z",
-      "details": {
-        "statusId": "1762779866667",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781634102",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:54.102Z",
-      "details": {
-        "statusId": "1762779866478",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781632617",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:52.617Z",
-      "details": {
-        "statusId": "1762779866325",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781631424",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:51.424Z",
-      "details": {
-        "statusId": "1762779866094",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781630060",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:50.060Z",
-      "details": {
-        "statusId": "1762779865937",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781628806",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:48.806Z",
-      "details": {
-        "statusId": "1762779865746",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781627447",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:47.447Z",
-      "details": {
-        "statusId": "1762779864636",
-        "statusName": "testes"
-      }
-    },
-    {
-      "id": "1762781625895",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:45.895Z",
-      "details": {
-        "statusId": "1762778090252",
-        "statusName": "teste"
-      }
-    },
-    {
-      "id": "1762781624612",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:44.612Z",
-      "details": {
-        "statusId": "1762778090098",
-        "statusName": "teste"
-      }
-    },
-    {
-      "id": "1762781623412",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:43.412Z",
-      "details": {
-        "statusId": "1762778089914",
-        "statusName": "teste"
-      }
-    },
-    {
-      "id": "1762781622062",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:42.062Z",
-      "details": {
-        "statusId": "1762778088867",
-        "statusName": "teste"
-      }
-    },
-    {
-      "id": "1762781620594",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:40.594Z",
-      "details": {
-        "statusId": "1762778035780",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781619210",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:39.210Z",
-      "details": {
-        "statusId": "1762778035631",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781616977",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:36.977Z",
-      "details": {
-        "statusId": "1762778035456",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781615588",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:35.588Z",
-      "details": {
-        "statusId": "1762778035281",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781614121",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:34.121Z",
-      "details": {
-        "statusId": "1762778033585",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781612803",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:32.803Z",
-      "details": {
-        "statusId": "1762778033462",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781611353",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:31.353Z",
-      "details": {
-        "statusId": "1762778033280",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781610004",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:30.004Z",
-      "details": {
-        "statusId": "1762778033124",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781608507",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:28.507Z",
-      "details": {
-        "statusId": "1762778032958",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781606828",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:26.828Z",
-      "details": {
-        "statusId": "1762778030780",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781605231",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:25.231Z",
-      "details": {
-        "statusId": "1762778030650",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781603688",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:23.688Z",
-      "details": {
-        "statusId": "1762778030494",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781602151",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:22.151Z",
-      "details": {
-        "statusId": "1762778030342",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781600856",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:20.856Z",
-      "details": {
-        "statusId": "1762778030183",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781599562",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:19.562Z",
-      "details": {
-        "statusId": "1762778027029",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781598184",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:18.184Z",
-      "details": {
-        "statusId": "1762778026823",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781596904",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:16.904Z",
-      "details": {
-        "statusId": "1762778026657",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781595527",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:15.527Z",
-      "details": {
-        "statusId": "1762778026458",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781594179",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:14.179Z",
-      "details": {
-        "statusId": "1762778026232",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781593032",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:13.032Z",
-      "details": {
-        "statusId": "1762778026081",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781591817",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:11.817Z",
-      "details": {
-        "statusId": "1762778025896",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781590595",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:10.595Z",
-      "details": {
-        "statusId": "1762778025740",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781589351",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:09.351Z",
-      "details": {
-        "statusId": "1762778025557",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781588231",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:08.231Z",
-      "details": {
-        "statusId": "1762778024694",
-        "statusName": "Arquivado"
-      }
-    },
-    {
-      "id": "1762781586806",
-      "action": "status_deleted",
-      "user": "admin@empresa.com",
-      "timestamp": "2025-11-10T13:33:06.806Z",
-      "details": {
-        "statusId": "1762778024487",
-        "statusName": "Arquivado"
-      }
     }
   ],
   "createdAt": "2024-01-01T00:00:00.000Z",
-  "updatedAt": "2025-11-13T15:25:03.681Z"
+  "updatedAt": "2025-11-24T19:26:04.927Z",
+  "departments": [
+    "Comercial",
+    "T.I",
+    "Logistica",
+    "Administrativo",
+    "Operacional",
+    "Marketing",
+    "Diretoria"
+  ]
 }

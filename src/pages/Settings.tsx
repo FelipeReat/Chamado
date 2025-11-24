@@ -5,6 +5,7 @@ import StatusManager from '../components/StatusManager'
 import FormEditor from '../components/FormEditor'
 import KanbanCustomization from '../components/KanbanCustomization'
 import AccessControl from '../components/AccessControl'
+import DepartmentsManager from '../components/DepartmentsManager'
 import HistoryLog from '../components/HistoryLog'
 import { 
   Settings as SettingsIcon,
@@ -22,7 +23,8 @@ import {
   EyeOff,
   Save,
   FileJson,
-  FileText
+  FileText,
+  Building
 } from 'lucide-react'
 
 interface TabProps {
@@ -132,6 +134,12 @@ const TABS: TabProps[] = [
     label: 'Exportar/Importar',
     icon: FileJson,
     component: () => <div>Exportar/Importar Configurações</div>
+  },
+  {
+    id: 'departments',
+    label: 'Departamentos',
+    icon: Building,
+    component: DepartmentsManager
   }
 ]
 
@@ -143,6 +151,7 @@ export default function Settings() {
   const [showPreview, setShowPreview] = useState(true)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -208,23 +217,24 @@ export default function Settings() {
     reader.readAsText(file)
   }
 
-  const handleReset = async () => {
-    if (confirm('Tem certeza que deseja redefinir todas as configurações para o padrão? Esta ação não pode ser desfeita.')) {
-      try {
-        setSaving(true)
-        const response = await apiFetch('/settings/reset', {
-          method: 'POST',
-          body: JSON.stringify({ user })
-        })
-        
-        alert('Configurações redefinidas com sucesso!')
-        handleUpdate()
-      } catch (error) {
-        console.error('Erro ao redefinir configurações:', error)
-        alert('Erro ao redefinir configurações')
-      } finally {
-        setSaving(false)
-      }
+  const handleReset = () => {
+    setShowResetConfirm(true)
+  }
+  const performReset = async () => {
+    try {
+      setSaving(true)
+      const response = await apiFetch('/settings/reset', {
+        method: 'POST',
+        body: JSON.stringify({ user })
+      })
+      alert('Configurações redefinidas com sucesso!')
+      handleUpdate()
+    } catch (error) {
+      console.error('Erro ao redefinir configurações:', error)
+      alert('Erro ao redefinir configurações')
+    } finally {
+      setSaving(false)
+      setShowResetConfirm(false)
     }
   }
 
@@ -414,6 +424,22 @@ export default function Settings() {
           </div>
         </div>
       </div>
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Confirmar redefinição</h3>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-700 dark:text-gray-300">Tem certeza que deseja redefinir todas as configurações para o padrão? Esta ação não pode ser desfeita.</p>
+              <div className="flex justify-end space-x-3">
+                <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Cancelar</button>
+                <button onClick={performReset} disabled={saving} className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Resetar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -7,7 +7,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const API_BASE = `${window.location.protocol}//${window.location.hostname}:5006`
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
   const res = await fetch(`${API_BASE}/api${path.startsWith('/') ? '' : '/'}${path}`, {
     ...options,
     headers,
