@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Fragment, useMemo } from 'react'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { toast } from 'sonner'
@@ -7,9 +7,11 @@ import {
   TrendingUp, 
   Clock, 
   CheckCircle, 
-  Download
+  Download,
+  Filter,
+  Grid as GridIcon
 } from 'lucide-react'
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart as RechartsLineChart, Line } from 'recharts'
 import { normalizeStatusKey } from '../lib/kanbanMapping'
 
 export default function Reports() {
@@ -25,7 +27,9 @@ export default function Reports() {
     status: [],
     priority: [],
     category: [],
-    monthly: []
+    monthly: [],
+    daily: [],
+    heatmap: []
   })
   const [metrics, setMetrics] = useState({
     total: 0,
@@ -33,8 +37,21 @@ export default function Reports() {
     inProgress: 0,
     resolved: 0,
     avgResolutionTime: 0,
-    userSatisfaction: 0
+    userSatisfaction: 0,
+    backlogAge: 0,
+    highPriorityOpen: 0
   })
+  const [technicians, setTechnicians] = useState<Array<{ id: string; name?: string; email: string }>>([])
+  const [boards, setBoards] = useState<Array<{ id: string; name: string }>>([])
+  const [filters, setFilters] = useState<{ technicianId: string; boardId: string; status: string; category: string }>({ technicianId: '', boardId: '', status: '', category: '' })
+  const [audits, setAudits] = useState<Array<{ id: string; timestamp: string; change: { status: { before: string; after: string } } }>>([])
+  const [phaseRows, setPhaseRows] = useState<Array<{ id: string; title: string; durations: Record<string, number> }>>([])
+  const [phaseAverages, setPhaseAverages] = useState<Array<{ name: string; value: number }>>([])
+
+  const columns = useMemo(() => {
+    const allowed = (availableStatuses || []).map((s: any) => normalizeStatusKey(s.name))
+    return allowed.length ? allowed : ['open','in-progress','resolved']
+  }, [availableStatuses])
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -44,6 +61,10 @@ export default function Reports() {
       let data: ReportTicket[] = (resp.data || []) as ReportTicket[]
       data = data.filter((t) => new Date(t.created_at) >= daysAgo)
       if (!(isAdmin || isTechnician)) data = data.filter((t) => t.requester_id === (user as any)?.id || t.assigned_to_id === (user as any)?.id)
+      if (filters.technicianId) data = data.filter((t) => (t as any).assigned_to_id === filters.technicianId)
+      if (filters.boardId) data = data.filter((t) => (t as any).board_id === filters.boardId)
+      if (filters.status) data = data.filter(t => normalizeStatusKey(t.status) === normalizeStatusKey(filters.status))
+      if (filters.category) data = data.filter(t => String(t.category).toLowerCase() === String(filters.category).toLowerCase())
       setTickets(data)
       processData(data)
     } catch (error) {
@@ -52,7 +73,7 @@ export default function Reports() {
     } finally {
       setLoading(false)
     }
-  }, [dateRange, isAdmin, isTechnician, user])
+  }, [dateRange, isAdmin, isTechnician, user, filters])
 
   useEffect(() => {
     fetchTickets()
@@ -67,6 +88,26 @@ export default function Reports() {
         const list = Array.isArray((raw as any)?.statuses) ? (raw as any).statuses as StatusSetting[] : []
         setAvailableStatuses(list.filter((x: StatusSetting) => x.isActive))
       } catch (err) { void err }
+    })()
+    ;(async () => {
+      try {
+        const resp = await apiFetch('/users')
+        const dataAll = (resp.data || []) as Array<{ id: string; name?: string; email: string; role: string }>
+        setTechnicians(dataAll.filter(u => u.role === 'technician').map(u => ({ id: u.id, name: u.name, email: u.email })))
+      } catch {}
+    })()
+    ;(async () => {
+      try {
+        const resp = await apiFetch('/boards')
+        const list = (resp.data || []) as Array<{ id: string; name: string }>
+        setBoards(list)
+      } catch {}
+    })()
+    ;(async () => {
+      try {
+        const resp = await apiFetch('/tickets/audit')
+        setAudits((resp.data || []) as any[])
+      } catch {}
     })()
   }, [])
 
@@ -129,11 +170,40 @@ export default function Reports() {
       })
     }
 
+    const days = parseInt(dateRange)
+    const dailyData: Array<{ name: string; total: number; resolved: number }> = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
+      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59)
+      const dayTickets = tickets.filter(t => {
+        const dt = new Date(t.created_at)
+        return dt >= dayStart && dt <= dayEnd
+      })
+      dailyData.push({
+        name: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        total: dayTickets.length,
+        resolved: dayTickets.filter(t => normalizeStatusKey(t.status) === 'resolved').length
+      })
+    }
+    const heat: Array<{ dow: number; hour: number; count: number }> = []
+    for (let dow = 0; dow < 7; dow++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const count = tickets.filter(t => {
+          const dt = new Date(t.created_at)
+          return dt.getDay() === dow && dt.getHours() === hour
+        }).length
+        heat.push({ dow, hour, count })
+      }
+    }
     setChartData({
       status: statusData,
       priority: priorityData,
       category: categoryData,
-      monthly: monthlyData
+      monthly: monthlyData,
+      daily: dailyData,
+      heatmap: heat
     })
 
     // Calculate metrics
@@ -146,14 +216,47 @@ export default function Reports() {
         }, 0) / resolvedTickets.length / (1000 * 60 * 60 * 24) // Convert to days
       : 0
 
+    const openTickets = tickets.filter(t => normalizeStatusKey(t.status) === 'open' || normalizeStatusKey(t.status) === 'in-progress')
+    const backlogAge = openTickets.length > 0 ? Math.round(openTickets.reduce((acc, t) => acc + ((Date.now() - new Date(t.created_at).getTime()) / (1000 * 60 * 60 * 24)), 0) / openTickets.length) : 0
+    const highPriorityOpen = openTickets.filter(t => t.priority === 'High' || t.priority === 'Urgent').length
     setMetrics({
       total: tickets.length,
       open: tickets.filter(t => normalizeStatusKey(t.status) === 'open').length,
       inProgress: tickets.filter(t => normalizeStatusKey(t.status) === 'in-progress').length,
       resolved: resolvedTickets.length,
       avgResolutionTime: Math.round(avgResolutionTime * 10) / 10,
-      userSatisfaction: 4.2 // Mock data - would come from user feedback
+      userSatisfaction: 4.2,
+      backlogAge,
+      highPriorityOpen
     })
+
+    const formatStatus = (s: string) => normalizeStatusKey(s)
+    const rows: Array<{ id: string; title: string; durations: Record<string, number> }> = tickets.map((t) => {
+      const auditsForTicket = audits.filter(a => a.id === t.id).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      let cursor = new Date(t.created_at).getTime()
+      let currentStatus = auditsForTicket.length > 0 ? formatStatus(auditsForTicket[0].change.status.before) : formatStatus(t.status)
+      if (!columns.includes(currentStatus)) currentStatus = columns[0]
+      const durations: Record<string, number> = {}
+      auditsForTicket.forEach(a => {
+        const ts = new Date(a.timestamp).getTime()
+        const key = currentStatus
+        const delta = Math.max(0, ts - cursor)
+        if (columns.includes(key)) durations[key] = (durations[key] || 0) + delta
+        cursor = ts
+        currentStatus = formatStatus(a.change.status.after)
+        if (!columns.includes(currentStatus)) currentStatus = columns[0]
+      })
+      const end = t.resolved_at ? new Date(t.resolved_at).getTime() : new Date().getTime()
+      const finalDelta = Math.max(0, end - cursor)
+      if (columns.includes(currentStatus)) durations[currentStatus] = (durations[currentStatus] || 0) + finalDelta
+      return { id: t.id, title: t.title, durations }
+    })
+    setPhaseRows(rows)
+    const avg: Array<{ name: string; value: number }> = columns.map((k) => {
+      const total = rows.reduce((acc, r) => acc + (r.durations[k] || 0), 0)
+      return { name: k, value: rows.length ? Math.round(total / rows.length) : 0 }
+    })
+    setPhaseAverages(avg)
   }
 
   const exportData = () => {
@@ -181,6 +284,20 @@ export default function Reports() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
+  const exportCSV = () => {
+    const headers = ['id','title','status','priority','category','created_at','updated_at']
+    const rows = tickets.map(t => [t.id, t.title, t.status, t.priority, t.category, t.created_at, t.updated_at])
+    const csv = [headers.join(','), ...rows.map(r => r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `relatorio-chamados-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   if (loading) {
     return (
@@ -200,7 +317,7 @@ export default function Reports() {
             Análise detalhada dos chamados de suporte
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center space-x-4">
+        <div className="mt-4 sm:mt-0 flex items-center space-x-2 sm:space-x-4">
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
@@ -213,12 +330,122 @@ export default function Reports() {
           </select>
           <button
             onClick={exportData}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
           >
             <Download className="w-4 h-4 mr-2" />
             Exportar
           </button>
+          <button
+            onClick={exportCSV}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            CSV
+          </button>
         </div>
+      </div>
+
+      {/* Heatmap de criação por dia/hora */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
+        <div className="flex items-center mb-4">
+          <GridIcon className="w-5 h-5 text-gray-500 mr-2" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Heatmap de Criação (Dia x Hora)</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="min-w-[700px]">
+            <div className="grid grid-cols-[100px_repeat(24,minmax(0,1fr))] gap-1">
+              <div></div>
+              {Array.from({ length: 24 }).map((_, h) => (
+                <div key={h} className="text-xs text-gray-500 text-center">{h}:00</div>
+              ))}
+              {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((day, dow) => (
+                <Fragment key={`row-${dow}`}>
+                  <div className="text-xs text-gray-500 py-1">{day}</div>
+                  {Array.from({ length: 24 }).map((_, hour) => {
+                    const cell = (chartData.heatmap as any[]).find((c: any) => c.dow === dow && c.hour === hour)
+                    const v = cell ? cell.count : 0
+                    const intensity = Math.min(1, v / 5)
+                    const bg = intensity === 0 ? 'bg-gray-100 dark:bg-gray-700' : 'bg-blue-200'
+                    return <div key={`cell-${dow}-${hour}`} className={`h-6 ${bg}`} title={`${day} ${hour}:00 - ${v}`}></div>
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tempo por fase por chamado */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Tempo de Atendimento por Fase (por chamado)</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+            <thead>
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Chamado</th>
+                {columns.map((name) => (
+                  <th key={`col-${name}`} className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {phaseRows.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-3 py-2 text-gray-900 dark:text-gray-100">#{row.id.slice(0,8)} - {row.title}</td>
+                  {columns.map((name) => {
+                    const ms = row.durations[name] || 0
+                    const days = Math.floor(ms / (1000 * 60 * 60 * 24))
+                    const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+                    const label = days > 0 ? `${days}d ${hours}h` : `${hours}h`
+                    return <td key={`cell-${row.id}-${name}`} className="px-3 py-2 text-gray-900 dark:text-gray-100">{label}</td>
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Médias por fase */}
+      <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-lg shadow transition-colors">
+        <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Tempo médio por Fase</h3>
+        <div className="h-48 lg:h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsBarChart data={phaseAverages.map(x => ({ name: x.name, value: Math.round(x.value / (1000*60*60)) }))}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis label={{ value: 'Horas', angle: -90, position: 'insideLeft' }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#0EA5E9" name="Horas" />
+            </RechartsBarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Filtros Avançados */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Filter className="w-4 h-4 text-gray-500" />
+        <select value={filters.status} onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todos Status</option>
+          {(availableStatuses || []).map((s: any) => (
+            <option key={s.id || s.name} value={s.name}>{s.name}</option>
+          ))}
+        </select>
+        <select value={filters.category} onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todas Categorias</option>
+          {['Hardware','Software','Network','Other'].map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select value={filters.boardId} onChange={(e) => setFilters(prev => ({ ...prev, boardId: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todos Boards</option>
+          {boards.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}
+        </select>
+        <select value={filters.technicianId} onChange={(e) => setFilters(prev => ({ ...prev, technicianId: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todos Técnicos</option>
+          {technicians.map(t => (<option key={t.id} value={t.id}>{t.name || t.email}</option>))}
+        </select>
       </div>
 
       {/* Key Metrics */}
@@ -341,7 +568,7 @@ export default function Reports() {
 
         {/* Monthly Trend */}
       <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-lg shadow transition-colors">
-        <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Tendência Mensal</h3>
+          <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Tendência Mensal</h3>
           <div className="h-48 lg:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsBarChart data={chartData.monthly}>
@@ -359,7 +586,7 @@ export default function Reports() {
 
         {/* Category Distribution */}
       <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-lg shadow transition-colors">
-        <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Distribuição por Categoria</h3>
+          <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Distribuição por Categoria</h3>
           <div className="h-48 lg:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsBarChart data={chartData.category} layout="vertical">
@@ -369,6 +596,24 @@ export default function Reports() {
                 <Tooltip cursor={{ fill: 'transparent' }} wrapperStyle={{ outline: 'none' }} />
                 <Bar dataKey="value" fill="#8B5CF6" />
               </RechartsBarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Daily Trend */}
+        <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-lg shadow transition-colors">
+          <h3 className="text-base lg:text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Tendência Diária</h3>
+          <div className="h-48 lg:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsLineChart data={chartData.daily}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="total" stroke="#6366F1" name="Total" />
+                <Line type="monotone" dataKey="resolved" stroke="#22C55E" name="Resolvidos" />
+              </RechartsLineChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -400,18 +645,26 @@ export default function Reports() {
             <h4 className="text-sm font-medium text-gray-500 mb-2">Eficiência</h4>
             <div className="space-y-2">
               <div className="flex justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-300">Taxa de Resolução:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Taxa de Resolução:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {metrics.total > 0 ? Math.round((metrics.resolved / metrics.total) * 100) : 0}%
                 </span>
               </div>
               <div className="flex justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-300">Tempo Médio:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{metrics.avgResolutionTime} dias</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Tempo Médio:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{metrics.avgResolutionTime} dias</span>
               </div>
               <div className="flex justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-300">Satisfação:</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{metrics.userSatisfaction}/5</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Backlog Médio (dias):</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{metrics.backlogAge}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Abertos de Alta/Urgente:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{metrics.highPriorityOpen}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Satisfação:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{metrics.userSatisfaction}/5</span>
               </div>
             </div>
           </div>

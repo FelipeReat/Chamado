@@ -36,6 +36,36 @@ export default function TicketDetails() {
   const [editData, setEditData] = useState<any>(null)
   const [technicians, setTechnicians] = useState<any[]>([])
   const [usersBasic, setUsersBasic] = useState<any[]>([])
+  const [imageModalSrc, setImageModalSrc] = useState<string | null>(null)
+  const [zoomScale, setZoomScale] = useState<number>(1)
+  const [isDragging, setIsDragging] = useState<boolean>(false)
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+  const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+
+  useEffect(() => {
+    try {
+      if (imageModalSrc) {
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = ''
+      }
+    } catch {}
+    return () => {
+      try { document.body.style.overflow = '' } catch {}
+    }
+  }, [imageModalSrc])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && imageModalSrc) {
+        setImageModalSrc(null)
+        setZoomScale(1)
+        setOffset({ x: 0, y: 0 })
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [imageModalSrc])
 
   useEffect(() => {
     if (id) {
@@ -341,22 +371,12 @@ export default function TicketDetails() {
               <div className="flex items-center">
                 <User className="w-4 h-4 text-gray-400 mr-2" />
                 <span className="text-sm text-gray-900 dark:text-gray-100">
-                  {ticket.requester?.name || ticket.requester?.email}
+                  {(ticket as any)?.custom_fields?.name || ticket.requester?.name || ticket.requester?.email}
                 </span>
               </div>
             </div>
 
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Atribuído a</h3>
-              <div className="flex items-center">
-                <User className="w-4 h-4 text-gray-400 mr-2" />
-                <span className="text-sm text-gray-900 dark:text-gray-100">
-                  {ticket.assigned_to?.name || 
-                   ticket.assigned_to?.email || 
-                   'Não atribuído'}
-                </span>
-              </div>
-            </div>
+            
 
             <div>
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Criado em</h3>
@@ -399,6 +419,79 @@ export default function TicketDetails() {
               <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{ticket.description}</p>
             </div>
           </div>
+
+          {Array.isArray((ticket as any)?.custom_fields?.attachments) && ((ticket as any)?.custom_fields?.attachments as string[]).length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Anexos</h3>
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {((ticket as any)?.custom_fields?.attachments as string[]).map((src: string, i: number) => (
+                    <button
+                      key={i}
+                      onClick={() => { setImageModalSrc(src); setZoomScale(1); setOffset({ x: 0, y: 0 }) }}
+                      className="group relative block"
+                      aria-label={`Abrir anexo ${i + 1}`}
+                    >
+                      <img src={src} alt={`Anexo ${i + 1}`} className="rounded border border-gray-200 dark:border-gray-700 object-cover max-h-40 w-full" />
+                      <span className="absolute inset-0 rounded border-2 border-transparent group-hover:border-blue-400"></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {imageModalSrc && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => { setImageModalSrc(null); setZoomScale(1); setOffset({ x: 0, y: 0 }) }} onWheel={(e) => e.preventDefault()}>
+              <div className="max-w-5xl max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className={`relative max-w-full max-h-[85vh] overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                  onWheel={(e) => {
+                    e.preventDefault()
+                    const delta = e.deltaY > 0 ? -0.1 : 0.1
+                    const next = Math.min(5, Math.max(1, zoomScale + delta))
+                    setZoomScale(next)
+                  }}
+                  onMouseDown={(e) => {
+                    setIsDragging(true)
+                    setDragStart({ x: e.clientX, y: e.clientY })
+                  }}
+                  onMouseMove={(e) => {
+                    if (!isDragging || !dragStart) return
+                    const dx = e.clientX - dragStart.x
+                    const dy = e.clientY - dragStart.y
+                    setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }))
+                    setDragStart({ x: e.clientX, y: e.clientY })
+                  }}
+                  onMouseUp={() => {
+                    setIsDragging(false)
+                    setDragStart(null)
+                  }}
+                  onMouseLeave={() => {
+                    setIsDragging(false)
+                    setDragStart(null)
+                  }}
+                >
+                  <img
+                    src={imageModalSrc}
+                    alt="Anexo"
+                    style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoomScale})`, transformOrigin: 'center center' }}
+                    className="rounded shadow-lg max-h-[85vh] w-auto object-contain select-none"
+                    draggable={false}
+                  />
+                </div>
+                <div className="mt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                    onClick={() => { setZoomScale(1); setOffset({ x: 0, y: 0 }) }}
+                  >
+                    Resetar zoom
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           
 
@@ -447,52 +540,6 @@ export default function TicketDetails() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Solicitante</label>
-                  <select
-                    value={editData?.requester_id || ''}
-                    onChange={(e) => setEditData({ ...editData, requester_id: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                    disabled={!(isAdmin || isTechnician)}
-                  >
-                    <option value="">Não atribuído</option>
-                    {usersBasic.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Atribuído a</label>
-                  <select
-                    value={editData?.assigned_to_id || ''}
-                    onChange={(e) => setEditData({ ...editData, assigned_to_id: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                  >
-                    <option value="">Não atribuído</option>
-                    {technicians.map((t) => (
-                      <option key={t.id} value={t.id}>{t.user_metadata?.full_name || t.name || t.email}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {editData && editData.custom_fields && Object.keys(editData.custom_fields || {}).length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Campos Personalizados</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                    {Object.entries(editData.custom_fields || {}).map(([key, value]) => (
-                      <div key={key}>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-300">{key}</label>
-                        <input
-                          value={Array.isArray(value) ? value.join(', ') : String(value ?? '')}
-                          onChange={(e) => setEditData({ ...editData, custom_fields: { ...editData.custom_fields, [key]: e.target.value } })}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setEditMode(false)}
@@ -501,19 +548,33 @@ export default function TicketDetails() {
                 <button
                   onClick={async () => {
                     try {
-                      const payload = { 
-                        ...editData, 
-                        assigned_to_id: editData?.assigned_to_id ? editData.assigned_to_id : null,
-                        requester_id: editData?.requester_id ? editData.requester_id : null
+                      const normalizeCategory = (input: any) => {
+                        const raw = String(input || '').trim().toLowerCase()
+                        if (!raw) return undefined
+                        if (raw.startsWith('hard')) return 'Hardware'
+                        if (raw.startsWith('soft')) return 'Software'
+                        if (raw.includes('network') || raw.includes('rede')) return 'Network'
+                        return 'Other'
                       }
+                      const normalizePriority = (input: any) => {
+                        const raw = String(input || '').trim().toLowerCase()
+                        if (!raw) return undefined
+                        if (raw.includes('low') || raw.includes('baixa')) return 'Low'
+                        if (raw.includes('medium') || raw.includes('média') || raw.includes('media')) return 'Medium'
+                        if (raw.includes('high') || raw.includes('alta')) return 'High'
+                        if (raw.includes('urgent') || raw.includes('urgente')) return 'Urgent'
+                        return undefined
+                      }
+                      const payload: any = {}
+                      if (typeof editData?.title === 'string') payload.title = editData.title
+                      if (typeof editData?.description === 'string') payload.description = editData.description
+                      const cat = normalizeCategory(editData?.category)
+                      if (cat) payload.category = cat
+                      const pri = normalizePriority(editData?.priority)
+                      if (pri) payload.priority = pri
                       const resp = await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
                       const updated = resp.data
-                      const assigned = technicians.find((t: any) => t.id === updated.assigned_to_id)
-                      const requester = usersBasic.find((u: any) => u.id === updated.requester_id)
-                      setTicket(() => {
-                        const next = assigned ? { ...updated, assigned_to: assigned } : updated
-                        return requester ? { ...next, requester } : next
-                      })
+                      setTicket(updated)
                       setEditMode(false)
                     } catch (e) {
                       console.error('Erro ao salvar alterações do chamado:', e)
@@ -525,27 +586,7 @@ export default function TicketDetails() {
             </div>
           )}
 
-          {ticket.custom_fields && Object.keys(ticket.custom_fields || {}).length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Campos do Formulário</h3>
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 transition-colors space-y-3">
-                {Object.entries(ticket.custom_fields || {}).map(([key, value]) => {
-                  let label = key
-                  const list = (settings as any)?.formFields || []
-                  const found = list.find((f: any) => f.name === key)
-                  if (found?.label) label = found.label
-                  return (
-                    <div key={key} className="flex items-start justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-300">{label}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {Array.isArray(value) ? value.join(', ') : String(value)}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+          
 
           {/* Status Change Buttons */}
           {canChangeStatus && (

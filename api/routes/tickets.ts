@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getTickets as fsGetTickets, createTicket as fsCreateTicket, updateTicket as fsUpdateTicket, getComments as fsGetComments, addComment as fsAddComment, findTicket as fsFindTicket } from '../storage/tickets.js'
+import { getTickets as fsGetTickets, createTicket as fsCreateTicket, updateTicket as fsUpdateTicket, getComments as fsGetComments, addComment as fsAddComment, findTicket as fsFindTicket, getAudit as fsGetAudit } from '../storage/tickets.js'
 import { getPool } from '../db/pool.js'
 import { dbGetTickets, dbCreateTicket, dbUpdateTicket, dbGetComments, dbAddComment, dbFindTicket } from '../db/ticketsRepo.js'
 import { getOrCreateDefaultBoardId, getBoards } from '../storage/boards.js'
@@ -197,6 +197,17 @@ router.post('/:id/comments', requireAuth, async (req, res) => {
     comment = fsAddComment(id, (req as any).user.sub, content)
   }
   res.json({ success: true, data: comment })
+})
+
+router.get('/audit', requireAuth, async (req, res) => {
+  try {
+    const { ticket_id } = req.query as any
+    const list = fsGetAudit(ticket_id ? String(ticket_id) : undefined)
+    res.json({ success: true, data: list })
+  } catch (error) {
+    console.error('Erro ao obter auditoria de tickets:', error)
+    res.status(500).json({ success: false, error: 'Falha ao obter auditoria' })
+  }
 })
 
 export default router

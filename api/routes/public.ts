@@ -89,6 +89,7 @@ router.post('/tickets', async (req, res) => {
     const fullDescription = `${description || ''}\n\n---\nSolicitante: ${name || 'Anon'}${email ? ` <${email}>` : ''}`
 
     const defaultBoardId = getOrCreateDefaultBoardId('Geral')
+    const cf = custom_fields && typeof custom_fields === 'object' ? custom_fields : {}
     const record = createTicket({
       title: title || 'Sem título',
       description: fullDescription,
@@ -98,7 +99,7 @@ router.post('/tickets', async (req, res) => {
       board_id: defaultBoardId,
       requester_id: requester_id || 'public-submission',
       assigned_to_id: assigned_to_id || (assigned ? assigned.id : null),
-      custom_fields: custom_fields && typeof custom_fields === 'object' ? custom_fields : {}
+      custom_fields: { ...cf, name: typeof name === 'string' ? name : '' }
     })
 
     // Fire simple notification (logs in console)

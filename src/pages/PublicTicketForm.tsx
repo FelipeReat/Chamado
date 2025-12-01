@@ -17,6 +17,7 @@ export default function PublicTicketForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [orderedFields, setOrderedFields] = useState<FormField[]>([])
   const [publicUserNames, setPublicUserNames] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<string[]>([])
   const formatPhone = (v: string) => {
     const d = String(v || '').replace(/\D+/g, '').slice(0, 11)
     if (d.length <= 2) return d
@@ -176,7 +177,7 @@ export default function PublicTicketForm() {
           ...formData,
           requester_id: formData.requester_id || undefined,
           assigned_to_id: formData.assigned_to_id || undefined,
-          custom_fields: customValues
+          custom_fields: { ...customValues, attachments }
         }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -252,6 +253,32 @@ export default function PublicTicketForm() {
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
                           <textarea name="description" value={formData.description} onChange={handleChange} required={Boolean(field.required)} rows={4} className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors" placeholder={field.placeholder || 'Forneça detalhes sobre o problema, incluindo mensagens de erro, etapas para reproduzir, etc.'} />
+                          <div className="mt-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => {
+                                const files = e.target.files
+                                if (!files || files.length === 0) { setAttachments([]); return }
+                                const readers = Array.from(files).map((file) => new Promise<string>((resolve, reject) => {
+                                  const reader = new FileReader()
+                                  reader.onload = () => resolve(String(reader.result))
+                                  reader.onerror = () => reject(reader.error)
+                                  reader.readAsDataURL(file)
+                                }))
+                                Promise.all(readers).then(setAttachments).catch(() => setAttachments([]))
+                              }}
+                              className="block w-full text-sm text-gray-700 dark:text-gray-300"
+                            />
+                            {attachments.length > 0 && (
+                              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {attachments.map((src, i) => (
+                                  <img key={i} src={src} alt={`Anexo ${i + 1}`} className="rounded border border-gray-200 dark:border-gray-700 object-cover max-h-32 w-full" />
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                       {field.name === 'category' && (
@@ -387,6 +414,32 @@ export default function PublicTicketForm() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{fieldConfigs['description']?.label || 'Descrição Detalhada'}</label>
                 <textarea name="description" value={formData.description} onChange={handleChange} required={Boolean(fieldConfigs['description']?.required ?? true)} rows={4} className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors" placeholder={fieldConfigs['description']?.placeholder || 'Forneça detalhes sobre o problema, incluindo mensagens de erro, etapas para reproduzir, etc.'} />
+                <div className="mt-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = e.target.files
+                      if (!files || files.length === 0) { setAttachments([]); return }
+                      const readers = Array.from(files).map((file) => new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader()
+                        reader.onload = () => resolve(String(reader.result))
+                        reader.onerror = () => reject(reader.error)
+                        reader.readAsDataURL(file)
+                      }))
+                      Promise.all(readers).then(setAttachments).catch(() => setAttachments([]))
+                    }}
+                    className="block w-full text-sm text-gray-700 dark:text-gray-300"
+                  />
+                  {attachments.length > 0 && (
+                    <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {attachments.map((src, i) => (
+                        <img key={i} src={src} alt={`Anexo ${i + 1}`} className="rounded border border-gray-200 dark:border-gray-700 object-cover max-h-32 w-full" />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{fieldConfigs['category']?.label || 'Categoria'}</label>

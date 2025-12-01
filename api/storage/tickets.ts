@@ -27,6 +27,16 @@ export interface TicketCommentRecord {
   created_at: string
 }
 
+export interface TicketAuditRecord {
+  id: string
+  timestamp: string
+  change: {
+    status: { before: string; after: string }
+    board_id: { before: string | null; after: string | null }
+    assigned_to_id: { before: string | null; after: string | null }
+  }
+}
+
 const dataDir = path.join(process.cwd(), 'data')
 const ticketsFile = path.join(dataDir, 'tickets.json')
 const commentsFile = path.join(dataDir, 'ticket_comments.json')
@@ -95,6 +105,26 @@ export function getComments(ticketId?: string): TicketCommentRecord[] {
 export function saveComments(comments: TicketCommentRecord[]) {
   ensureFiles()
   fs.writeFileSync(commentsFile, JSON.stringify(comments, null, 2), 'utf-8')
+}
+
+export function getAudit(ticketId?: string): TicketAuditRecord[] {
+  ensureFiles()
+  try {
+    const list: TicketAuditRecord[] = JSON.parse(fs.readFileSync(auditFile, 'utf-8'))
+    const existingIds = new Set(getTickets().map(t => t.id))
+    const filtered = (Array.isArray(list) ? list : []).filter(a => existingIds.has(a.id)).map(a => ({
+      ...a,
+      change: {
+        ...a.change,
+        status: { before: sanitizeStatus(a.change?.status?.before), after: sanitizeStatus(a.change?.status?.after) },
+        board_id: { before: a.change?.board_id?.before ?? null, after: a.change?.board_id?.after ?? null },
+        assigned_to_id: { before: a.change?.assigned_to_id?.before ?? null, after: a.change?.assigned_to_id?.after ?? null }
+      }
+    }))
+    return ticketId ? filtered.filter(a => a.id === ticketId) : filtered
+  } catch {
+    return []
+  }
 }
 
 export function findTicket(id: string): TicketRecord | undefined {
