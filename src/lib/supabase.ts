@@ -17,7 +17,7 @@ export interface Ticket {
   description: string
   category: 'Hardware' | 'Software' | 'Network' | 'Other'
   priority: 'Low' | 'Medium' | 'High' | 'Urgent'
-  status: 'Open' | 'In Progress' | 'Resolved'
+  status: string
   board_id: string | null
   requester_id: string
   assigned_to_id: string | null

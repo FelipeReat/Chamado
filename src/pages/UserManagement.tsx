@@ -9,10 +9,8 @@ import {
   Search, 
   Edit, 
   Trash2, 
-  Shield, 
   User as UserIcon,
   Mail,
-  Calendar,
   Key,
   Save,
   X
@@ -153,6 +151,8 @@ export default function UserManagement() {
     (user.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  interface UserWithConfirm extends User { email_confirmed_at?: string | null }
+
   const openModal = (type: 'add' | 'edit', user?: User) => {
     if (type === 'add') {
       setFormData({ email: '', password: '', full_name: '', role: 'user' })
@@ -282,9 +282,9 @@ export default function UserManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      (user as any).email_confirmed_at ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                      (user as UserWithConfirm).email_confirmed_at ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                     }`}>
-                      {(user as any).email_confirmed_at ? 'Ativo' : 'Pendente'}
+                      {(user as UserWithConfirm).email_confirmed_at ? 'Ativo' : 'Pendente'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -367,10 +367,10 @@ export default function UserManagement() {
                      (user.role as string) === 'technician' ? 'Técnico' : 'Usuário'}
                   </span>
                 <span className={`px-2 py-1 text-xs rounded-full ${
-                      (user as any).email_confirmed_at ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                      (user as UserWithConfirm).email_confirmed_at ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                     }`}>
-                      {(user as any).email_confirmed_at ? 'Ativo' : 'Pendente'}
-                    </span>
+                      {(user as UserWithConfirm).email_confirmed_at ? 'Ativo' : 'Pendente'}
+                  </span>
               </div>
             </div>
             

@@ -42,6 +42,7 @@ interface KanbanColumn {
   order: number
   isActive: boolean
   icon?: string
+  boardId?: string | null
 }
 
 interface KanbanCustomizationProps {
@@ -73,10 +74,12 @@ export default function KanbanCustomization({ onUpdate }: KanbanCustomizationPro
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
   const [availableStatuses, setAvailableStatuses] = useState<any[]>([])
+  const [boards, setBoards] = useState<{ id: string, name: string }[]>([])
 
   useEffect(() => {
     fetchColumns()
     fetchStatuses()
+    fetchBoards()
   }, [])
 
 const sanitizeColumn = (raw: any): KanbanColumn => ({
@@ -94,7 +97,8 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
   color: typeof raw?.color === 'string' ? raw.color : COLORS[0],
   order: typeof raw?.order === 'number' ? raw.order : 0,
   isActive: Boolean(raw?.isActive ?? true),
-  icon: typeof raw?.icon === 'string' ? raw.icon : 'Clock'
+  icon: typeof raw?.icon === 'string' ? raw.icon : 'Clock',
+  boardId: typeof raw?.boardId === 'string' ? raw.boardId : null
 })
 
   const fetchColumns = async () => {
@@ -119,6 +123,16 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
       setAvailableStatuses(nextStatuses)
     } catch (error) {
       console.error('Erro ao buscar status:', error)
+    }
+  }
+
+  const fetchBoards = async () => {
+    try {
+      const resp = await apiFetch('/boards')
+      const list = (resp as any)?.data || []
+      setBoards(list)
+    } catch (error) {
+      console.error('Erro ao buscar boards:', error)
     }
   }
 
@@ -292,7 +306,8 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
       showDescription: column?.showDescription ?? true,
       showCreatedDate: column?.showCreatedDate ?? false,
       showStatus: column?.showStatus ?? false,
-      icon: column?.icon || 'Clock'
+      icon: column?.icon || 'Clock',
+      boardId: column?.boardId || ''
     })
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -333,12 +348,28 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
             />
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Cor da Coluna
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {COLORS.map(color => (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Board
+          </label>
+          <select
+            value={formData.boardId}
+            onChange={(e) => setFormData({ ...formData, boardId: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Global</option>
+            {boards.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Cor da Coluna
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {COLORS.map(color => (
                 <button
                   key={color}
                   type="button"

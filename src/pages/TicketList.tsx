@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
-import { Search, Filter, Plus, Eye, Edit, MessageSquare, User, Calendar, Tag, AlertTriangle } from 'lucide-react'
+import { Search, Filter, Plus } from 'lucide-react'
 import TicketKanbanView from '../components/TicketKanbanView'
 import { statusStyleFromSettings } from '../lib/statusColors'
 import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
 
 export default function TicketList() {
   const { user, isAdmin, isTechnician } = useAuth()
-  const [tickets, setTickets] = useState<any[]>([])
+  type ListTicket = { id: string; title: string; description: string; category: string; priority: string; status: string; created_at: string; updated_at?: string; board_id?: string | null; requester?: { email?: string; name?: string; user_metadata?: { full_name?: string } }; assigned_to?: { email?: string; name?: string; user_metadata?: { full_name?: string } }; assigned_to_id?: string; requester_id?: string }
+  interface StatusSetting { name: string; color?: string; isActive?: boolean }
+  const [tickets, setTickets] = useState<ListTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({
@@ -29,41 +31,43 @@ export default function TicketList() {
   const categories = ['Hardware', 'Software', 'Rede', 'Email', 'Sistema', 'Outro']
   const priorities = ['Low', 'Medium', 'High', 'Urgent']
   const [statusOptions, setStatusOptions] = useState<string[]>([])
-  const [settings, setSettings] = useState<any>(null)
+  const [settings, setSettings] = useState<Record<string, unknown> | null>(null)
 
-  useEffect(() => {
-    fetchTickets()
-  }, [filters, boardId])
-
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const s = await apiFetch('/settings')
-        const list = Array.isArray((s as any)?.statuses) ? (s as any).statuses : []
-        setStatusOptions(list.filter((x: any) => x.isActive).map((x: any) => x.name))
-        setSettings(s)
-      } catch {}
-    })()
-  }, [])
-
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     try {
       const qs = boardId ? `?board_id=${encodeURIComponent(boardId)}` : ''
       const resp = await apiFetch(`/tickets${qs}`)
-      let data = resp.data || []
-      // Apply filters client-side
-      if (filters.status) data = data.filter((t: any) => t.status === filters.status)
-      if (filters.priority) data = data.filter((t: any) => t.priority === filters.priority)
-      if (filters.category) data = data.filter((t: any) => t.category === filters.category)
-      if (filters.assigned_to) data = data.filter((t: any) => t.assigned_to_id === filters.assigned_to)
-      if (!(isAdmin || isTechnician)) data = data.filter((t: any) => t.requester_id === user?.id || t.assigned_to_id === user?.id)
+      let data: ListTicket[] = (resp.data || []) as ListTicket[]
+      if (filters.status) data = data.filter((t) => t.status === filters.status)
+      if (filters.priority) data = data.filter((t) => t.priority === filters.priority)
+      if (filters.category) data = data.filter((t) => t.category === filters.category)
+      if (filters.assigned_to) data = data.filter((t) => t.assigned_to_id === filters.assigned_to)
+      if (!(isAdmin || isTechnician)) data = data.filter((t) => t.requester_id === (user as any)?.id || t.assigned_to_id === (user as any)?.id)
       setTickets(data)
     } catch (error) {
       console.error('Error fetching tickets:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [boardId, filters, isAdmin, isTechnician, user])
+
+  useEffect(() => {
+    fetchTickets()
+  }, [fetchTickets])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const s = await apiFetch('/settings')
+        const raw: unknown = s
+        const list = Array.isArray((raw as { statuses?: StatusSetting[] }).statuses) ? ((raw as { statuses?: StatusSetting[] }).statuses as StatusSetting[]) : []
+        setStatusOptions(list.filter((x) => x.isActive).map((x) => x.name))
+        setSettings(s)
+      } catch (err) { void err }
+    })()
+  }, [])
+
+  
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = 
@@ -84,7 +88,11 @@ export default function TicketList() {
     }
   }
 
-  const getStatusStyle = (status: string) => statusStyleFromSettings((settings as any)?.statuses || [], status)
+  const getStatusStyle = (status: string) => {
+    const raw: unknown = settings
+    const statuses = Array.isArray((raw as { statuses?: StatusSetting[] } | null)?.statuses) ? ((raw as { statuses?: StatusSetting[] } | null)?.statuses as StatusSetting[]) : []
+    return statusStyleFromSettings(statuses as any[], status)
+  }
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({
@@ -111,8 +119,8 @@ export default function TicketList() {
         if (!currentBoardId) {
           currentBoardId = localStorage.getItem('current_board_id') || null
         }
-      } catch {}
-      const updates: any = { status: newStatus }
+      } catch (err) { void err }
+      const updates: { status: string; board_id?: string | null } = { status: newStatus }
       if (currentBoardId) {
         updates.board_id = currentBoardId
       }
@@ -120,7 +128,7 @@ export default function TicketList() {
       let persisted = false
       try {
         const resp = await apiFetch(`/tickets/${ticketId}`, { method: 'PUT', body: JSON.stringify(updates) })
-        persisted = Boolean((resp as any)?.success)
+        persisted = Boolean((resp as unknown as { success?: boolean }).success)
       } catch (err) {
         console.warn('Falha ao persistir status/board, mantendo atualização local:', err)
       }
@@ -442,7 +450,7 @@ export default function TicketList() {
       ) : (
         <div className="h-full min-h-0">
           <TicketKanbanView
-            tickets={filteredTickets as any}
+            tickets={filteredTickets as unknown as import('../lib/supabase').Ticket[]}
             getStatusStyle={getStatusStyle}
             getPriorityColor={getPriorityColor}
             onStatusChange={updateTicketStatus}

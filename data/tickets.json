@@ -35,11 +35,11 @@
     "description": "asdasdasd",
     "category": "Hardware",
     "priority": "High",
-    "status": "In Progress",
+    "status": "teste",
     "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
     "assigned_to_id": null,
     "created_at": "2025-11-10T15:54:00.114Z",
-    "updated_at": "2025-11-24T18:21:53.756Z"
+    "updated_at": "2025-11-25T13:24:26.425Z"
   },
   {
     "id": "e691dc27-08de-4e0d-8f4b-86dd3f6f68ac",
@@ -47,12 +47,12 @@
     "description": "Desc",
     "category": "Software",
     "priority": "Low",
-    "status": "Resolved",
+    "status": "1764075594766",
     "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
     "requester_id": "245dd13a-98e7-44db-94f1-f82e7f01a6c2",
     "assigned_to_id": null,
     "created_at": "2025-11-10T20:54:03.332Z",
-    "updated_at": "2025-11-24T18:22:01.342Z",
+    "updated_at": "2025-11-25T13:00:31.531Z",
     "resolved_at": null
   },
   {
@@ -61,12 +61,12 @@
     "description": "Desc p�blico\n\n---\nSolicitante: Visitante <visitante@example.com>",
     "category": "Other",
     "priority": "Medium",
-    "status": "Resolved",
+    "status": "In Progress",
     "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
     "requester_id": "public-submission",
     "assigned_to_id": "7453203e-20c3-41c5-bd7b-add534a9a325",
     "created_at": "2025-11-10T20:54:04.071Z",
-    "updated_at": "2025-11-24T18:22:00.055Z",
+    "updated_at": "2025-11-26T15:25:53.469Z",
     "resolved_at": null
   },
   {
@@ -117,12 +117,12 @@
     "description": "Teste",
     "category": "Network",
     "priority": "High",
-    "status": "Open",
+    "status": "In Progress",
     "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
     "requester_id": "245dd13a-98e7-44db-94f1-f82e7f01a6c2",
     "assigned_to_id": "de50e6b8-8a6b-48ad-a466-06cc9dcba43a",
     "created_at": "2025-11-10T20:54:33.475Z",
-    "updated_at": "2025-11-24T18:21:58.658Z",
+    "updated_at": "2025-11-25T13:24:27.861Z",
     "resolved_at": null
   },
   {
@@ -145,12 +145,12 @@
     "description": "assigned",
     "category": "Software",
     "priority": "Low",
-    "status": "In Progress",
+    "status": "Open",
     "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
     "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
     "assigned_to_id": null,
     "created_at": "2025-11-10T21:16:25.926Z",
-    "updated_at": "2025-11-17T15:58:44.489Z",
+    "updated_at": "2025-11-25T13:24:25.039Z",
     "resolved_at": null
   },
   {
@@ -164,7 +164,7 @@
     "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
     "assigned_to_id": "7453203e-20c3-41c5-bd7b-add534a9a325",
     "created_at": "2025-11-12T18:29:48.117Z",
-    "updated_at": "2025-11-14T19:26:56.704Z",
+    "updated_at": "2025-11-25T13:24:21.171Z",
     "resolved_at": null
   },
   {
@@ -173,13 +173,28 @@
     "description": "teste",
     "category": "Other",
     "priority": "Urgent",
-    "status": "Open",
+    "status": "teste",
     "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
     "requester_id": "245dd13a-98e7-44db-94f1-f82e7f01a6c2",
     "assigned_to_id": "7453203e-20c3-41c5-bd7b-add534a9a325",
     "custom_fields": {},
     "created_at": "2025-11-14T13:54:09.702Z",
-    "updated_at": "2025-11-24T18:06:22.638Z",
+    "updated_at": "2025-11-25T13:24:22.172Z",
+    "resolved_at": null
+  },
+  {
+    "id": "480dc2bb-33a0-4162-87e8-217d420e7913",
+    "title": "teste",
+    "description": "teste",
+    "category": "Hardware",
+    "priority": "Medium",
+    "status": "Open",
+    "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
+    "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
+    "assigned_to_id": null,
+    "custom_fields": {},
+    "created_at": "2025-11-25T13:21:54.844Z",
+    "updated_at": "2025-11-25T13:24:46.002Z",
     "resolved_at": null
   }
 ]

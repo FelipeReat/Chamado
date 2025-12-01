@@ -51,7 +51,10 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
         }
         const settings = await apiFetch('/settings')
         const derived = deriveColumnsFromSettings(settings as any)
-        setColumns(derived)
+        let currentBoardId: string | null = null
+        try { currentBoardId = localStorage.getItem('current_board_id') || null } catch {}
+        const filtered = Array.isArray(derived) ? derived.filter((c: any) => !c.boardId || (currentBoardId && c.boardId === currentBoardId)) : []
+        setColumns(filtered.length > 0 ? filtered : derived)
       } catch (err) {
         console.warn('Kanban: usando colunas padrão')
         // Fallback para padrão
@@ -62,7 +65,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             statusIds: ['open'],
             targetStatus: statusIdToLabel('open'),
             icon: <Clock className="w-4 h-4" />,
-            color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+            color: '#3B82F6'
           },
           {
             id: 'in-progress',
@@ -70,7 +73,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             statusIds: ['in-progress'],
             targetStatus: statusIdToLabel('in-progress'),
             icon: <AlertCircle className="w-4 h-4" />,
-            color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+            color: '#F59E0B'
           },
           {
             id: 'resolved',
@@ -78,7 +81,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             statusIds: ['resolved'],
             targetStatus: statusIdToLabel('resolved'),
             icon: <CheckCircle className="w-4 h-4" />,
-            color: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+            color: '#10B981'
           }
         ])
       }
@@ -86,11 +89,13 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
 
     loadColumns()
 
-    const handler = () => {
-      loadColumns()
-    }
+    const handler = () => { loadColumns() }
     window.addEventListener('settingsUpdated', handler as any)
-    return () => window.removeEventListener('settingsUpdated', handler as any)
+    window.addEventListener('boardChanged', handler as any)
+    return () => {
+      window.removeEventListener('settingsUpdated', handler as any)
+      window.removeEventListener('boardChanged', handler as any)
+    }
   }, [])
 
   // Organizar tickets por coluna baseado em statusIds configurados
@@ -323,12 +328,27 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
       {columns.map((column) => {
         const columnTickets = limitTickets(ticketsByColumn[column.id] || [])
         const hasMore = (ticketsByColumn[column.id] || []).length > 15
+        const isHex = String(column.color || '').startsWith('#')
+        const hex = String(column.color || '')
+        const hexToRgb = (h: string) => {
+          const s = h.replace('#','')
+          const bigint = parseInt(s.length === 3 ? s.split('').map(c => c + c).join('') : s, 16)
+          const r = (bigint >> 16) & 255
+          const g = (bigint >> 8) & 255
+          const b = bigint & 255
+          return { r, g, b }
+        }
+        const rgba = (h: string, a: number) => { const { r,g,b } = hexToRgb(h); return `rgba(${r}, ${g}, ${b}, ${a})` }
+        const columnStyle: React.CSSProperties | undefined = isHex ? {
+          background: `linear-gradient(180deg, ${rgba(hex, 0.12)} 0%, ${rgba(hex, 0.04)} 100%)`,
+          borderColor: rgba(hex, 0.35)
+        } : undefined
         return (
-          <div key={column.id} className={`flex flex-col h-full basis-[320px] min-w-[300px] flex-shrink-0 rounded-lg border-2 ${column.color}`}>
+          <div key={column.id} className={`flex flex-col h-full basis-[320px] min-w-[300px] flex-shrink-0 rounded-lg border-2 ${isHex ? '' : column.color}`} style={columnStyle}>
             {/* Cabeçalho da Coluna */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-2">
-                <div className={`p-2 rounded-full border`} style={getStatusStyle ? getStatusStyle(column.targetStatus) : undefined}>
+                <div className={`p-2 rounded-full border`} style={isHex ? { borderColor: rgba(hex, 0.4), backgroundColor: rgba(hex, 0.08) } : (getStatusStyle ? getStatusStyle(column.targetStatus) : undefined)}>
                   {column.icon}
                 </div>
                 <h3 className="font-medium text-gray-900 dark:text-gray-100" role="heading" aria-level={3}>

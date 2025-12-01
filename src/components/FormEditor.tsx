@@ -30,6 +30,8 @@ import {
   AlertTriangle,
   Settings,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   GripVertical
 } from 'lucide-react'
 
@@ -54,6 +56,7 @@ interface FormField {
     customMessage?: string
   }
   options?: string[]
+  optionsFromUsers?: boolean
   placeholder?: string
   helpText?: string
   defaultValue?: any
@@ -75,12 +78,6 @@ const FIELD_TYPES = [
   { value: 'multiselect', label: 'Seleção Múltipla', icon: CheckSquare },
   { value: 'checkbox', label: 'Checkbox', icon: ToggleLeft },
   { value: 'textarea', label: 'Texto Longo', icon: FileText },
-  { value: 'password', label: 'Senha', icon: EyeOff },
-  { value: 'currency', label: 'Moeda', icon: DollarSign },
-  { value: 'time', label: 'Hora', icon: Clock },
-  { value: 'user', label: 'Usuário', icon: User },
-  { value: 'department', label: 'Departamento', icon: Building },
-  { value: 'location', label: 'Localização', icon: MapPin }
 ]
 
 export default function FormEditor({ onUpdate }: FormEditorProps) {
@@ -104,7 +101,10 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
     try {
       setLoading(true)
       const response = await apiFetch('/settings')
-      const saved = ((response as any)?.formFields || []) as FormField[]
+      let saved = ((response as any)?.formFields || []) as FormField[]
+      const supported = new Set(FIELD_TYPES.map(t => t.value))
+      saved = saved.filter(f => supported.has(f.type))
+      const formOrder = Array.isArray((response as any)?.formOrder) ? (response as any).formOrder.map(String) : []
       const builtins: FormField[] = [
         { id: 'builtin:name', name: 'name', label: 'Seu nome', type: 'text', required: true, order: 0, isActive: true, visiblePublic: true, visibleInternal: false, readonlyPublic: false, readonlyInternal: true },
         { id: 'builtin:email', name: 'email', label: 'Seu email', type: 'email', required: true, order: 0, isActive: true, visiblePublic: true, visibleInternal: false, readonlyPublic: false, readonlyInternal: true },
@@ -112,15 +112,25 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
         { id: 'builtin:description', name: 'description', label: 'Descrição Detalhada', type: 'textarea', required: true, order: 2, isActive: true, visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
         { id: 'builtin:category', name: 'category', label: 'Categoria', type: 'select', required: true, order: 3, isActive: true, options: ['Hardware','Software','Rede','Email','Sistema','Outro'], visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
         { id: 'builtin:priority', name: 'priority', label: 'Prioridade', type: 'select', required: true, order: 4, isActive: true, options: ['Low','Medium','High','Urgent'], visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
-        { id: 'builtin:assigned_to_id', name: 'assigned_to_id', label: 'Atribuir a', type: 'select', required: false, order: 5, isActive: true, visiblePublic: true, visibleInternal: true, readonlyPublic: false, readonlyInternal: false },
+        { id: 'builtin:assigned_to_id', name: 'assigned_to_id', label: 'Atribuir a', type: 'select', required: false, order: 5, isActive: true, visiblePublic: false, visibleInternal: true, readonlyPublic: true, readonlyInternal: false },
       ]
       const merged: FormField[] = builtins.map(b => {
         const found = saved.find(f => f.name === b.name)
         return found ? found as any : b
       }).concat(saved.filter(f => !builtins.some(b => b.name === f.name)))
-      const uniqueByName: Record<string, FormField> = {}
-      merged.forEach(f => { uniqueByName[f.name] = f })
-      setFields(Object.values(uniqueByName))
+      const byId: Record<string, FormField> = {}
+      merged.forEach(f => { byId[f.id] = f })
+      let ordered: FormField[] = merged
+      if (formOrder.length) {
+        const orderSet = new Set(formOrder)
+        const front = formOrder.map(id => byId[id]).filter(Boolean) as FormField[]
+        const rest = merged.filter(f => !orderSet.has(f.id))
+        ordered = front.concat(rest)
+      } else {
+        ordered = merged.sort((a, b) => (a.order || 0) - (b.order || 0))
+      }
+      ordered = ordered.map((f, idx) => ({ ...f, order: idx + 1 }))
+      setFields(ordered)
     } catch (error) {
       console.error('Erro ao buscar campos:', error)
     } finally {
@@ -281,6 +291,40 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
       try { toast.error('Falha ao salvar nova ordem') } catch {}
     }
     setSavingOrder(false)
+  }
+
+  const persistOrder = async (ordered: FormField[]) => {
+    try {
+      setSavingOrder(true)
+      const fieldIds = ordered.map(f => f.id)
+      await apiFetch('/settings/form-fields/reorder', { method: 'POST', body: JSON.stringify({ user, fieldIds }) })
+      onUpdate()
+      try { window.dispatchEvent(new CustomEvent('settingsUpdated')) } catch {}
+      try { toast.success('Ordem atualizada') } catch {}
+    } catch (error) {
+      console.error('Erro ao salvar ordem:', error)
+      try { toast.error('Falha ao salvar ordem') } catch {}
+      fetchFields()
+    }
+    setSavingOrder(false)
+  }
+
+  const moveFieldUp = async (index: number) => {
+    if (index <= 0) return
+    const next = [...fields]
+    const [item] = next.splice(index, 1)
+    next.splice(index - 1, 0, item)
+    setFields(next.map((f, i) => ({ ...f, order: i + 1 })))
+    await persistOrder(next)
+  }
+
+  const moveFieldDown = async (index: number) => {
+    if (index >= fields.length - 1) return
+    const next = [...fields]
+    const [item] = next.splice(index, 1)
+    next.splice(index + 1, 0, item)
+    setFields(next.map((f, i) => ({ ...f, order: i + 1 })))
+    await persistOrder(next)
   }
 
   const getIconComponent = (iconName: string) => {
@@ -472,6 +516,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
       placeholder: field?.placeholder || '',
       helpText: field?.helpText || '',
       options: field?.options || [],
+      optionsFromUsers: field?.optionsFromUsers ?? false,
       validation: field?.validation || {},
       defaultValue: field?.defaultValue || '',
       visiblePublic: field?.visiblePublic ?? true,
@@ -583,6 +628,49 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Opções
               </label>
+              {formData.type === 'select' && (
+                <div className="flex items-center mb-3 space-x-3">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.optionsFromUsers}
+                      onChange={async (e) => {
+                        const checked = e.target.checked
+                        if (checked) {
+                          try {
+                            const resp = await apiFetch('/users')
+                            const list = ((resp as any)?.data || []) as Array<{ name?: string; email?: string }>
+                            const opts = list.map(u => (u.name || u.email || '')).filter(Boolean)
+                            setFormData({ ...formData, optionsFromUsers: true, options: opts })
+                          } catch (err) {
+                            setFormData({ ...formData, optionsFromUsers: true })
+                          }
+                        } else {
+                          setFormData({ ...formData, optionsFromUsers: false })
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Usar nomes de usuários do sistema</span>
+                  </label>
+                  {formData.optionsFromUsers && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const resp = await apiFetch('/users')
+                          const list = ((resp as any)?.data || []) as Array<{ name?: string; email?: string }>
+                          const opts = list.map(u => (u.name || u.email || '')).filter(Boolean)
+                          setFormData({ ...formData, options: opts })
+                        } catch {}
+                      }}
+                      className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                    >
+                      Atualizar lista
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 {formData.options.map((option, index) => (
                   <div key={index} className="flex items-center space-x-2">
@@ -762,6 +850,28 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
           </button>
           
           <button
+            onClick={async () => {
+              try {
+                setSavingOrder(true)
+                await apiFetch('/settings', {
+                  method: 'PUT',
+                  body: JSON.stringify({ formFields: [], formOrder: [] })
+                })
+                await fetchFields()
+                toast.success('Editor limpo. Configurações redefinidas.')
+              } catch (e) {
+                toast.error('Falha ao limpar o editor')
+              } finally {
+                setSavingOrder(false)
+              }
+            }}
+            className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Limpar Editor
+          </button>
+
+          <button
             onClick={() => { setIsCreating(true); setShowCreateModal(true) }}
             className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
           >
@@ -773,11 +883,11 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
 
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Novo Campo</h3>
             </div>
-            <div className="px-6 py-4">
+            <div className="px-6 py-4 max-h-[75vh] overflow-y-auto">
               <FieldForm
                 field={null}
                 onSave={handleCreateField}
@@ -793,7 +903,7 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
           {previewMode ? (
             <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
               <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
@@ -856,6 +966,22 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         Ordem: {field.order}
                       </span>
+                      <button
+                        disabled={savingOrder}
+                        onClick={() => moveFieldUp(index)}
+                        className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+                        title="Mover para cima"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        disabled={savingOrder}
+                        onClick={() => moveFieldDown(index)}
+                        className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+                        title="Mover para baixo"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </button>
                       
                       <button
                         onClick={() => { setEditingField(field); setShowEditModal(true) }}
@@ -887,11 +1013,11 @@ export default function FormEditor({ onUpdate }: FormEditorProps) {
       )}
       {showEditModal && editingField && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Editar Campo</h3>
             </div>
-            <div className="px-6 py-4">
+            <div className="px-6 py-4 max-h-[75vh] overflow-y-auto">
               <FieldForm
                 field={editingField}
                 onSave={(data) => handleUpdateField(editingField.id, data)}

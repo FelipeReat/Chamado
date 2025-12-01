@@ -1,18 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
-import { useAuth } from '../hooks/useAuth'
+ 
 import { toast } from 'sonner'
 import { sendTicketCreatedNotification } from '../utils/notifications'
-import { Send, User, Tag, AlertTriangle, Info, CheckCircle } from 'lucide-react'
+import { Send, User, Tag, Info } from 'lucide-react'
+import type { User as AppUser } from '../lib/supabase'
+
+type ValueType = string | number | boolean | string[]
+interface FieldValidation { minLength?: number; maxLength?: number; min?: number; max?: number; pattern?: string; customMessage?: string }
+type FieldType = 'text' | 'number' | 'email' | 'phone' | 'url' | 'date' | 'datetime' | 'select' | 'multiselect' | 'checkbox' | 'textarea'
+interface FormField { id: string; name: string; label: string; type: FieldType; required?: boolean; placeholder?: string; options?: string[]; optionsFromUsers?: boolean; isActive?: boolean; visiblePublic?: boolean; visibleInternal?: boolean; readonlyPublic?: boolean; readonlyInternal?: boolean; defaultValue?: ValueType; helpText?: string; validation?: FieldValidation; order?: number }
+interface Settings { formFields?: FormField[]; formOrder?: string[] }
 
 export default function NewTicket() {
-  const { user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [technicians, setTechnicians] = useState<any[]>([])
-  const [usersBasic, setUsersBasic] = useState<any[]>([])
-  const [departments, setDepartments] = useState<string[]>([])
+  const [technicians, setTechnicians] = useState<AppUser[]>([])
+  const [fieldConfigs, setFieldConfigs] = useState<Record<string, Partial<FormField>>>({})
+  const [customFields, setCustomFields] = useState<FormField[]>([])
+  const [customValues, setCustomValues] = useState<Record<string, ValueType>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [orderedFields, setOrderedFields] = useState<FormField[]>([])
+  const [userNames, setUserNames] = useState<string[]>([])
+  const formatPhone = (v: string) => {
+    const d = String(v || '').replace(/\D+/g, '').slice(0, 11)
+    if (d.length <= 2) return d
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  }
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -20,72 +37,139 @@ export default function NewTicket() {
     priority: 'Medium',
     assigned_to_id: ''
   })
-  const [dynamicFields, setDynamicFields] = useState<any[]>([])
-  const [customValues, setCustomValues] = useState<Record<string, any>>({})
-  const [fieldConfigs, setFieldConfigs] = useState<Record<string, any>>({})
+  
 
   const defaultCategories = ['Hardware','Software','Rede','Email','Sistema','Outro']
 
   const defaultPriorities = [
-    { value: 'Low', label: 'Baixa', icon: Info, color: 'text-green-600' },
-    { value: 'Medium', label: 'Média', icon: Info, color: 'text-yellow-600' },
-    { value: 'High', label: 'Alta', icon: AlertTriangle, color: 'text-orange-600' },
-    { value: 'Urgent', label: 'Urgente', icon: AlertTriangle, color: 'text-red-600' }
+    { value: 'Low', label: 'Baixa' },
+    { value: 'Medium', label: 'Média' },
+    { value: 'High', label: 'Alta' },
+    { value: 'Urgent', label: 'Urgente' }
   ]
+
+  
 
   useEffect(() => {
     fetchTechnicians()
-    const loadSettings = async () => {
+    ;(async () => {
       try {
-        const settings = await apiFetch('/settings')
-        const fields = (settings as any)?.formFields || []
-        const activeRaw = fields
-          .filter((f: any) => f.isActive)
-          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-        const byNameActive: Record<string, any> = {}
-        activeRaw.forEach((f: any) => { byNameActive[f.name] = f })
-        const active = Object.values(byNameActive)
-        setDynamicFields(active)
-        const byNameAll: Record<string, any> = {}
-        fields.forEach((f: any) => { byNameAll[f.name] = f })
-        setFieldConfigs(byNameAll)
-      } catch {}
-    }
-    const loadDepartments = async () => {
-      try {
-        const resp = await apiFetch('/public/departments')
-        const list = Array.isArray((resp as any)?.data) ? (resp as any).data : []
-        setDepartments(list)
-      } catch {}
-    }
-    loadSettings()
-    loadDepartments()
-    const onSettingsUpdated = () => loadSettings()
-    try { window.addEventListener('settingsUpdated', onSettingsUpdated as any) } catch {}
-    return () => {
-      try { window.removeEventListener('settingsUpdated', onSettingsUpdated as any) } catch {}
-    }
+        const s = await apiFetch('/settings')
+        const fields: FormField[] = Array.isArray((s as Settings)?.formFields) ? ((s as Settings).formFields || []) : []
+        const byName: Record<string, Partial<FormField>> = {}
+        fields.forEach((f: FormField) => { byName[f.name] = f })
+        setFieldConfigs(byName)
+        const customs = fields.filter((f: FormField) => (f.isActive ?? true) && (f.visibleInternal ?? true) && !['name','email','title','description','category','priority','assigned_to_id','requester_id'].includes(f.name))
+        setCustomFields(customs)
+        setCustomValues(prev => {
+          const next = { ...prev }
+          customs.forEach((f: FormField) => {
+            if (f.defaultValue !== undefined && next[f.name] === undefined) next[f.name] = f.defaultValue as ValueType
+          })
+          return next
+        })
+        const formOrder: string[] = Array.isArray((s as any)?.formOrder) ? ((s as any).formOrder as string[]).map(String) : []
+        const defaultCategories = ['Hardware','Software','Rede','Email','Sistema','Outro']
+        const defaultPriorities = ['Low','Medium','High','Urgent']
+        const builtins: FormField[] = [
+          { id: 'builtin:title', name: 'title', label: byName['title']?.label || 'Título do Chamado', type: 'text', required: Boolean(byName['title']?.required ?? true), order: 1, isActive: (byName['title']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+          { id: 'builtin:description', name: 'description', label: byName['description']?.label || 'Descrição Detalhada', type: 'textarea', required: Boolean(byName['description']?.required ?? true), order: 2, isActive: (byName['description']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+          { id: 'builtin:category', name: 'category', label: byName['category']?.label || 'Categoria', type: 'select', required: Boolean(byName['category']?.required ?? true), options: (Array.isArray(byName['category']?.options) && byName['category']?.options?.length ? (byName['category']!.options as string[]) : defaultCategories), order: 3, isActive: (byName['category']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+          { id: 'builtin:priority', name: 'priority', label: byName['priority']?.label || 'Prioridade', type: 'select', required: Boolean(byName['priority']?.required ?? true), options: (Array.isArray(byName['priority']?.options) && byName['priority']?.options?.length ? (byName['priority']!.options as string[]) : defaultPriorities), order: 4, isActive: (byName['priority']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+          { id: 'builtin:assigned_to_id', name: 'assigned_to_id', label: byName['assigned_to_id']?.label || 'Atribuir a', type: 'select', required: Boolean(byName['assigned_to_id']?.required ?? false), order: 5, isActive: (byName['assigned_to_id']?.isActive ?? true) as boolean, visiblePublic: false, visibleInternal: true }
+        ]
+        const merged: FormField[] = builtins.map(b => {
+          const found = fields.find(f => f.name === b.name)
+          return found ? { ...b, ...found } : b
+        }).concat(fields.filter(f => !builtins.some(b => b.name === f.name)))
+        const byId: Record<string, FormField> = {}
+        merged.forEach(f => { byId[f.id] = f })
+        let ordered: FormField[] = merged
+        if (formOrder.length) {
+          const orderSet = new Set(formOrder)
+          const front = formOrder.map(id => byId[id]).filter(Boolean) as FormField[]
+          const rest = merged.filter(f => !orderSet.has(f.id))
+          ordered = front.concat(rest)
+        } else {
+          ordered = merged.sort((a, b) => ((a as any).order || 0) - ((b as any).order || 0))
+        }
+        const withDynamic = ordered.map(f => {
+          if (f.type === 'select' && (f as any).optionsFromUsers) {
+            return { ...f, options: userNames.length ? userNames : (f.options || []) }
+          }
+          return f
+        })
+        setOrderedFields(withDynamic.filter(f => (f.isActive ?? true) && (f.visibleInternal ?? true)))
+      } catch (err) { void err }
+    })()
   }, [])
 
   const fetchTechnicians = async () => {
     try {
       const resp = await apiFetch('/users')
-      const dataAll = resp.data || []
-      setTechnicians(dataAll.filter((u: any) => u.role === 'technician'))
-      setUsersBasic(dataAll.filter((u: any) => u.role === 'user'))
+      const dataAll = (resp.data || []) as AppUser[]
+      setUserNames(dataAll.map(u => u.name || u.email || '').filter(Boolean))
+      setTechnicians(dataAll.filter((u) => u.role === 'technician'))
     } catch (error) {
       console.error('Error fetching technicians:', error)
       toast.error('Erro ao carregar técnicos')
     }
   }
 
+  const validate = () => {
+    const nextErrors: Record<string, string> = {}
+    customFields.forEach((field: FormField) => {
+      const val = customValues[field.name]
+      const req = Boolean(field.required)
+      if (field.type === 'multiselect') {
+        if (req && (!Array.isArray(val) || val.length === 0)) nextErrors[field.name] = 'Campo obrigatório'
+      } else if (field.type === 'checkbox') {
+        if (req && !val) nextErrors[field.name] = 'Campo obrigatório'
+      } else {
+        const empty = val === undefined || val === null || String(val).trim() === ''
+        if (req && empty) nextErrors[field.name] = 'Campo obrigatório'
+      }
+      if (nextErrors[field.name]) return
+      const v = val !== undefined && val !== null ? String(val) : ''
+      const rules: FieldValidation = field.validation || {}
+      if ((field.type === 'text' || field.type === 'textarea') && rules.minLength && v.length < rules.minLength) nextErrors[field.name] = rules.customMessage || `Mínimo de ${rules.minLength} caracteres`
+      if ((field.type === 'text' || field.type === 'textarea') && rules.maxLength && v.length > rules.maxLength) nextErrors[field.name] = rules.customMessage || `Máximo de ${rules.maxLength} caracteres`
+      if (field.type === 'number') {
+        const n = Number(v)
+        if (!Number.isFinite(n)) nextErrors[field.name] = 'Número inválido'
+        if (rules.min !== undefined && n < Number(rules.min)) nextErrors[field.name] = rules.customMessage || `Mínimo ${rules.min}`
+        if (rules.max !== undefined && n > Number(rules.max)) nextErrors[field.name] = rules.customMessage || `Máximo ${rules.max}`
+      }
+      if (field.type === 'email') {
+        const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+        if (v && !ok) nextErrors[field.name] = 'Email inválido'
+      }
+      if (field.type === 'url') {
+        try { if (v) new URL(v) } catch (err) { void err ; nextErrors[field.name] = 'URL inválida' }
+      }
+      if (field.type === 'phone') {
+        const digits = v.replace(/\D+/g, '')
+        if (v && digits.length < 10) nextErrors[field.name] = 'Telefone inválido'
+      }
+      if (rules.pattern) {
+        try {
+          const re = new RegExp(rules.pattern)
+          if (v && !re.test(v)) nextErrors[field.name] = rules.customMessage || 'Valor inválido'
+        } catch (err) { void err }
+      }
+    })
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validate()) { try { toast.error('Verifique os campos destacados') } catch (err) { void err } ; return }
     setLoading(true)
 
     try {
       let currentBoardId: string | null = null
-      try { currentBoardId = localStorage.getItem('current_board_id') || null } catch {}
+      try { currentBoardId = localStorage.getItem('current_board_id') || null } catch (err) { void err }
       const resp = await apiFetch('/tickets', {
         method: 'POST',
         body: JSON.stringify({
@@ -95,8 +179,8 @@ export default function NewTicket() {
           priority: formData.priority,
           status: 'Open',
           assigned_to_id: formData.assigned_to_id || null,
-          board_id: currentBoardId
-          , custom_fields: customValues
+          board_id: currentBoardId,
+          custom_fields: customValues
         })
       })
       const data = resp.data
@@ -120,38 +204,7 @@ export default function NewTicket() {
     }
   }
 
-  const sendEmailNotification = async (technicianId: string, ticket: any) => {
-    try {
-      // Get technician email
-      const resp = await apiFetch('/users')
-      const technician = (resp.data || []).find((u: any) => u.id === technicianId)
 
-      if (technician?.email) {
-        // Send email via backend API
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
-          },
-          body: JSON.stringify({
-            to: technician.email,
-            subject: `Novo Chamado Atribuído: ${ticket.title}`,
-            body: `
-              <h2>Novo Chamado Atribuído</h2>
-              <p><strong>Título:</strong> ${ticket.title}</p>
-              <p><strong>Categoria:</strong> ${ticket.category}</p>
-              <p><strong>Prioridade:</strong> ${ticket.priority}</p>
-              <p><strong>Descrição:</strong> ${ticket.description}</p>
-              <p><a href="${window.location.origin}/chamados/${ticket.id}">Clique aqui para visualizar o chamado</a></p>
-            `
-          }),
-        })
-      }
-    } catch (error) {
-      console.error('Error sending email notification:', error)
-    }
-  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -172,61 +225,159 @@ export default function NewTicket() {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6">
-          {fieldConfigs['requester_id']?.visibleInternal !== false && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{fieldConfigs['requester_id']?.label || 'Solicitante (usuário)'}</label>
-            <select
-              value={(customValues as any)['requester_id'] || ''}
-              onChange={(e) => setCustomValues({ ...customValues, ['requester_id']: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-            >
-              <option value="">Selecionar usuário...</option>
-              {usersBasic.map((u: any) => (
-                <option key={u.id} value={u.id}>{u.name || u.email}</option>
-              ))}
-            </select>
-          </div>
-          )}
-          {/* Title */}
-          {(() => {
-            const cfg = fieldConfigs['title']
-            const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
-            if (!show) return null
-            return (
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {fieldConfigs['title']?.label || 'Título do Chamado'}
-            </label>
-            <div className="mt-1 relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Tag className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              </div>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                required={Boolean(fieldConfigs['title']?.required ?? true)}
-                value={formData.title}
-                onChange={handleChange}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors"
-                placeholder={fieldConfigs['title']?.placeholder || 'Descreva brevemente o problema'}
-              />
+          {orderedFields.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {orderedFields.map((field) => {
+                const fullSpan = ['title','description','assigned_to_id'].includes(field.name) || field.type === 'textarea'
+                return (
+                  <div key={field.id} className={fullSpan ? 'md:col-span-2' : ''}>
+                    {field.name === 'title' && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{field.label}</label>
+                        <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Tag className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                          </div>
+                          <input type="text" name="title" required={Boolean(field.required)} value={formData.title} onChange={handleChange} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors" placeholder={String(field.placeholder || '')} />
+                        </div>
+                      </>
+                    )}
+                    {field.name === 'description' && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{field.label}</label>
+                        <textarea name="description" rows={4} required={Boolean(field.required)} value={formData.description} onChange={handleChange} className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors" placeholder={String(field.placeholder || '')} />
+                      </>
+                    )}
+                    {field.name === 'category' && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{field.label}</label>
+                        <select name="category" required={Boolean(field.required)} value={formData.category} onChange={handleChange} className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100">
+                          {(field.options || []).map((category: string) => (<option key={category} value={category}>{category}</option>))}
+                        </select>
+                      </>
+                    )}
+                    {field.name === 'priority' && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{field.label}</label>
+                        <select name="priority" required={Boolean(field.required)} value={formData.priority} onChange={handleChange} className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100">
+                          {((field.options || []) as string[]).map(v => ({ value: v, label: v })).map((p) => (<option key={p.value} value={p.value}>{p.label}</option>))}
+                        </select>
+                        <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                          <Info className="w-4 h-4 mr-1" />
+                          <span>
+                            {formData.priority === 'Urgent' && 'Problema crítico que impede o trabalho'}
+                            {formData.priority === 'High' && 'Problema importante que afeta a produtividade'}
+                            {formData.priority === 'Medium' && 'Problema moderado que pode esperar'}
+                            {formData.priority === 'Low' && 'Problema menor ou melhoria'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {field.name === 'assigned_to_id' && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{field.label}</label>
+                        <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                          </div>
+                          <select name="assigned_to_id" value={formData.assigned_to_id} onChange={handleChange} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors">
+                            <option value="">Selecionar técnico...</option>
+                            {technicians.map((technician) => (<option key={technician.id} value={technician.id}>{technician.name || technician.email}</option>))}
+                          </select>
+                        </div>
+                      </>
+                    )}
+                    {!['title','description','category','priority','assigned_to_id'].includes(field.name) && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}{field.required && <span className="text-red-500 ml-1">*</span>}</label>
+                        {field.type === 'text' && (
+                          <>
+                            <input type="text" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                            {(field.validation?.maxLength || field.validation?.minLength) && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 text-right mt-1">
+                                {String(customValues[field.name] ?? '').length}{field.validation?.maxLength ? `/${field.validation.maxLength}` : ''}
+                                {!field.validation?.maxLength && field.validation?.minLength ? ` (mín ${field.validation.minLength})` : ''}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {field.type === 'number' && (
+                          <input type="number" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                        {field.type === 'email' && (
+                          <input type="email" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                        {field.type === 'phone' && (
+                          <input type="tel" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder || '(00) 00000-0000'} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                        {field.type === 'url' && (
+                          <input type="url" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                        {field.type === 'date' && (
+                          <input type="date" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                        {field.type === 'datetime' && (
+                          <input type="datetime-local" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                        {field.type === 'select' && (
+                          <select required={Boolean(field.required)} disabled={Boolean(field.readonlyInternal)} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100">
+                            <option value="">Selecione uma opção</option>
+                            {(field.options || []).map((opt: string, i: number) => (<option key={i} value={opt}>{opt}</option>))}
+                          </select>
+                        )}
+                        {field.type === 'multiselect' && (
+                          <div className="space-y-2">
+                            {(field.options || []).map((opt: string, i: number) => (
+                              <label key={i} className="flex items-center">
+                                <input type="checkbox" disabled={Boolean(field.readonlyInternal)} checked={Array.isArray(customValues[field.name]) ? (customValues[field.name] as string[]).includes(opt) : false} onChange={(e) => {
+                                  const current = Array.isArray(customValues[field.name]) ? (customValues[field.name] as string[]) : []
+                                  const next = e.target.checked ? [...current, opt] : current.filter((x: string) => x !== opt)
+                                  setCustomValues({ ...customValues, [field.name]: next })
+                                }} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                                <span className="text-sm text-gray-700 dark:text-gray-300">{opt}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {field.type === 'checkbox' && (
+                          <label className="flex items-center">
+                            <input type="checkbox" disabled={Boolean(field.readonlyInternal)} checked={!!customValues[field.name]} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.checked })} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{field.placeholder || 'Sim/Não'}</span>
+                          </label>
+                        )}
+                        {field.type === 'textarea' && (
+                          <textarea required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} rows={4} className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          </div>
-            )
-          })()}
+          )}
+          {orderedFields.length === 0 && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{fieldConfigs['title']?.label || 'Título do Chamado'}</label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Tag className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                </div>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  required={Boolean(fieldConfigs['title']?.required ?? true)}
+                  value={formData.title}
+                  onChange={handleChange}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-400 transition-colors"
+                  placeholder={fieldConfigs['title']?.placeholder || 'Descreva brevemente o problema'}
+                />
+              </div>
+            </div>
 
-          {/* Description */}
-          {(() => {
-            const cfg = fieldConfigs['description']
-            const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
-            if (!show) return null
-            return (
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {fieldConfigs['description']?.label || 'Descrição Detalhada'}
-            </label>
-            <div className="mt-1">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{fieldConfigs['description']?.label || 'Descrição Detalhada'}</label>
               <textarea
                 id="description"
                 name="description"
@@ -238,52 +389,26 @@ export default function NewTicket() {
                 placeholder={fieldConfigs['description']?.placeholder || 'Forneça detalhes sobre o problema, incluindo mensagens de erro, etapas para reproduzir, etc.'}
               />
             </div>
-          </div>
-            )
-          })()}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Category */}
-            {(() => {
-              const cfg = fieldConfigs['category']
-              const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
-              if (!show) return null
-              return (
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {fieldConfigs['category']?.label || 'Categoria'}
-              </label>
-              <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                required={Boolean(fieldConfigs['category']?.required ?? true)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors"
-              >
-                {(
-                  Array.isArray(fieldConfigs['category']?.options) && fieldConfigs['category']?.options?.length
-                    ? fieldConfigs['category']!.options
-                    : defaultCategories
-                ).map((category: string) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-              )
-            })()}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{fieldConfigs['category']?.label || 'Categoria'}</label>
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  required={Boolean(fieldConfigs['category']?.required ?? true)}
+                  className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors"
+                >
+                  {(Array.isArray(fieldConfigs['category']?.options) && fieldConfigs['category']?.options?.length ? fieldConfigs['category']!.options : defaultCategories).map((category: string) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Priority */}
-            {(() => {
-              const cfg = fieldConfigs['priority']
-              const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
-              if (!show) return null
-              return (
-            <div>
-              <label htmlFor="priority" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {fieldConfigs['priority']?.label || 'Prioridade'}
-              </label>
-              <div className="mt-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{fieldConfigs['priority']?.label || 'Prioridade'}</label>
                 <select
                   id="priority"
                   name="priority"
@@ -292,307 +417,131 @@ export default function NewTicket() {
                   required={Boolean(fieldConfigs['priority']?.required ?? true)}
                   className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors"
                 >
-                  {(
-                    Array.isArray(fieldConfigs['priority']?.options) && fieldConfigs['priority']?.options?.length
-                      ? (fieldConfigs['priority']!.options as string[]).map(v => ({ value: v, label: v }))
-                      : defaultPriorities
-                  ).map((priority: any) => (
-                    <option key={priority.value} value={priority.value}>{priority.label}</option>
+                  {(Array.isArray(fieldConfigs['priority']?.options) && fieldConfigs['priority']?.options?.length ? (fieldConfigs['priority']!.options as string[]).map(v => ({ value: v, label: v })) : defaultPriorities).map((p: { value: string; label: string }) => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+                <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                  <Info className="w-4 h-4 mr-1" />
+                  <span>
+                    {formData.priority === 'Urgent' && 'Problema crítico que impede o trabalho'}
+                    {formData.priority === 'High' && 'Problema importante que afeta a produtividade'}
+                    {formData.priority === 'Medium' && 'Problema moderado que pode esperar'}
+                    {formData.priority === 'Low' && 'Problema menor ou melhoria'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {customFields.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {customFields.map((field: FormField) => (
+                  <div key={field.id} className="space-y-2 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {field.label}
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    {field.type === 'text' && (
+                      <>
+                        <input type="text" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        {(field.validation?.maxLength || field.validation?.minLength) && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 text-right mt-1">
+                            {String(customValues[field.name] ?? '').length}{field.validation?.maxLength ? `/${field.validation.maxLength}` : ''}
+                            {!field.validation?.maxLength && field.validation?.minLength ? ` (mín ${field.validation.minLength})` : ''}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {field.type === 'number' && (
+                      <input type="number" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                    )}
+                    {field.type === 'email' && (
+                      <input type="email" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                    )}
+                    {field.type === 'phone' && (
+                      <input type="tel" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder || '(00) 00000-0000'} value={formatPhone(String(customValues[field.name] ?? ''))} onChange={(e) => setCustomValues({ ...customValues, [field.name]: formatPhone(e.target.value) })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                    )}
+                    {field.type === 'url' && (
+                      <input type="url" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                    )}
+                    {field.type === 'date' && (
+                      <input type="date" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                    )}
+                    {field.type === 'datetime' && (
+                      <input type="datetime-local" required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                    )}
+                    {field.type === 'select' && (
+                      <select required={Boolean(field.required)} disabled={Boolean(field.readonlyInternal)} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100">
+                        <option value="">Selecione uma opção</option>
+                        {(field.options || []).map((opt: string, i: number) => (
+                          <option key={i} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    )}
+                    {field.type === 'multiselect' && (
+                      <div className="space-y-2">
+                        {(field.options || []).map((opt: string, i: number) => (
+                          <label key={i} className="flex items-center">
+                            <input type="checkbox" disabled={Boolean(field.readonlyInternal)} checked={Array.isArray(customValues[field.name]) ? (customValues[field.name] as string[]).includes(opt) : false} onChange={(e) => {
+                              const current = Array.isArray(customValues[field.name]) ? (customValues[field.name] as string[]) : []
+                              const next = e.target.checked ? [...current, opt] : current.filter((x: string) => x !== opt)
+                              setCustomValues({ ...customValues, [field.name]: next })
+                            }} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {field.type === 'checkbox' && (
+                      <label className="flex items-center">
+                        <input type="checkbox" disabled={Boolean(field.readonlyInternal)} checked={!!customValues[field.name]} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.checked })} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{field.placeholder || 'Sim/Não'}</span>
+                      </label>
+                    )}
+                    {field.type === 'textarea' && (
+                      <>
+                        <textarea required={Boolean(field.required)} readOnly={Boolean(field.readonlyInternal)} placeholder={field.placeholder} value={String(customValues[field.name] ?? '')} onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100" />
+                        {(field.validation?.maxLength || field.validation?.minLength) && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 text-right mt-1">
+                            {String(customValues[field.name] ?? '').length}{field.validation?.maxLength ? `/${field.validation.maxLength}` : ''}
+                            {!field.validation?.maxLength && field.validation?.minLength ? ` (mín ${field.validation.minLength})` : ''}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {field.helpText && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{field.helpText}</p>}
+                    {errors[field.name] && <p className="text-xs text-red-600 mt-1">{errors[field.name]}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="relative">
+                <label htmlFor="assigned_to_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{fieldConfigs['assigned_to_id']?.label || 'Atribuir a'}</label>
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                </div>
+                <select
+                  id="assigned_to_id"
+                  name="assigned_to_id"
+                  value={formData.assigned_to_id}
+                  onChange={handleChange}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors"
+                >
+                  <option value="">Selecionar técnico...</option>
+                  {technicians.map((technician) => (
+                    <option key={technician.id} value={technician.id}>
+                      {technician.name || technician.email}
+                    </option>
                   ))}
                 </select>
               </div>
-              <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                <Info className="w-4 h-4 mr-1" />
-                <span>
-                  {formData.priority === 'Urgent' && 'Problema crítico que impede o trabalho'}
-                  {formData.priority === 'High' && 'Problema importante que afeta a produtividade'}
-                  {formData.priority === 'Medium' && 'Problema moderado que pode esperar'}
-                  {formData.priority === 'Low' && 'Problema menor ou melhoria'}
-                </span>
-              </div>
             </div>
-              )
-            })()}
+          
           </div>
-
-          {(() => {
-            const normalize = (s: string) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/g, '')
-            const reserved = new Set([
-              'title','titulo','titulodochamado',
-              'description','descricao','descricaodetalhada',
-              'category','categoria',
-              'priority','prioridade',
-              'assignedtoid','assigned_to_id','atribuir','atribuira',
-              'requesterid','requester_id','solicitante'
-            ])
-            const extraFields = dynamicFields.filter((f: any) => {
-              const n = normalize(f.name)
-              return !reserved.has(n) && (f.visibleInternal !== false)
-            })
-            return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {extraFields.map((field) => (
-              <div key={field.id}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {field.label}
-                  {field.required && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                {field.type === 'text' && (
-                  <input
-                    type="text"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'phone' && (
-                  <input
-                    type="tel"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    required={Boolean(field.required)}
-                    pattern={(field.validation as any)?.pattern || undefined}
-                    placeholder={field.placeholder || '(00) 00000-0000'}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'url' && (
-                  <input
-                    type="url"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    required={Boolean(field.required)}
-                    pattern={(field.validation as any)?.pattern || undefined}
-                    placeholder={field.placeholder || 'https://'}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'password' && (
-                  <input
-                    type="password"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    required={Boolean(field.required)}
-                    placeholder={field.placeholder || ''}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'currency' && (
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">R$</span>
-                    </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={(field.validation as any)?.min ?? undefined}
-                      max={(field.validation as any)?.max ?? undefined}
-                      value={customValues[field.name] ?? ''}
-                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                      required={Boolean(field.required)}
-                      className="w-full pl-12 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      readOnly={Boolean(field.readonlyInternal)}
-                    />
-                  </div>
-                )}
-                {field.type === 'time' && (
-                  <input
-                    type="time"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    required={Boolean(field.required)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'department' && (
-                  Array.isArray(field.options) && field.options.length > 0 ? (
-                    <select
-                      value={customValues[field.name] ?? ''}
-                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                      required={Boolean(field.required)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                      disabled={Boolean(field.readonlyInternal)}
-                    >
-                      <option value="">Selecione uma opção</option>
-                      {(field.options || []).map((opt: string, i: number) => (
-                        <option key={i} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select
-                      value={customValues[field.name] ?? ''}
-                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                      required={Boolean(field.required)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                      disabled={Boolean(field.readonlyInternal)}
-                    >
-                      <option value="">Selecione uma opção</option>
-                      {departments.map((opt: string, i: number) => (
-                        <option key={i} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  )
-                )}
-                {field.type === 'location' && (
-                  <input
-                    type="text"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    required={Boolean(field.required)}
-                    placeholder={field.placeholder || 'Endereço completo'}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'number' && (
-                  <input
-                    type="number"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'email' && (
-                  <input
-                    type="email"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'user' && (
-                  <select
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                    disabled={Boolean(field.readonlyInternal)}
-                  >
-                    <option value="">Selecionar usuário...</option>
-                    {usersBasic.map((u: any) => (
-                      <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                    ))}
-                  </select>
-                )}
-                {field.type === 'date' && (
-                  <input
-                    type="date"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'datetime' && (
-                  <input
-                    type="datetime-local"
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-                {field.type === 'select' && (
-                  <select
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-                    disabled={Boolean(field.readonlyInternal)}
-                  >
-                    <option value="">Selecione uma opção</option>
-                    {(field.options || []).map((opt: string, i: number) => (
-                      <option key={i} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                )}
-                {field.type === 'multiselect' && (
-                  <div className="space-y-2">
-                    {(field.options || []).map((opt: string, i: number) => (
-                      <label key={i} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={Array.isArray(customValues[field.name]) ? customValues[field.name].includes(opt) : false}
-                          onChange={(e) => {
-                            const current = Array.isArray(customValues[field.name]) ? customValues[field.name] : []
-                            const next = e.target.checked ? [...current, opt] : current.filter((x: any) => x !== opt)
-                            setCustomValues({ ...customValues, [field.name]: next })
-                          }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                          disabled={Boolean(field.readonlyInternal)}
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {field.type === 'checkbox' && (
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={!!customValues[field.name]}
-                      onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.checked })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                      disabled={Boolean(field.readonlyInternal)}
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{field.placeholder || 'Sim/Não'}</span>
-                  </label>
-                )}
-                {field.type === 'textarea' && (
-                  <textarea
-                    value={customValues[field.name] ?? ''}
-                    onChange={(e) => setCustomValues({ ...customValues, [field.name]: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    readOnly={Boolean(field.readonlyInternal)}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-            )
-          })()}
-
-          {/* Assign to Technician */}
-          {(() => {
-            const cfg = fieldConfigs['assigned_to_id']
-            const show = cfg ? (cfg.isActive !== false && cfg.visibleInternal !== false) : true
-            if (!show) return null
-            return (
-          <div>
-            <label htmlFor="assigned_to_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {fieldConfigs['assigned_to_id']?.label || 'Atribuir a'}
-            </label>
-            <div className="mt-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-              </div>
-              <select
-                id="assigned_to_id"
-                name="assigned_to_id"
-                value={formData.assigned_to_id}
-                onChange={handleChange}
-                required={Boolean(fieldConfigs['assigned_to_id']?.required ?? false)}
-                disabled={Boolean(fieldConfigs['assigned_to_id']?.readonlyInternal)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors"
-              >
-                <option value="">Selecionar técnico...</option>
-                {technicians.map((technician) => (
-                  <option key={technician.id} value={technician.id}>
-                    {(technician as any).name || technician.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-            )
-          })()}
-
+          )}
+          
           {/* Submit Button */}
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
             <button

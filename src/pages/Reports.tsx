@@ -1,25 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import { toast } from 'sonner'
 import { 
   BarChart, 
-  PieChart, 
   TrendingUp, 
-  Users, 
   Clock, 
   CheckCircle, 
-  AlertTriangle,
-  Calendar,
   Download
 } from 'lucide-react'
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
+import { normalizeStatusKey } from '../lib/kanbanMapping'
 
 export default function Reports() {
   const { user, isAdmin, isTechnician } = useAuth()
-  const [tickets, setTickets] = useState<any[]>([])
+  type ReportTicket = { id: string; title: string; status: string; priority: string; category: string; created_at: string; updated_at: string }
+  interface StatusSetting { name: string; color?: string; isActive?: boolean }
+  const [tickets, setTickets] = useState<ReportTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('30')
+  const [settings, setSettings] = useState<Record<string, unknown> | null>(null)
+  const [availableStatuses, setAvailableStatuses] = useState<StatusSetting[]>([])
   const [chartData, setChartData] = useState({
     status: [],
     priority: [],
@@ -35,19 +36,14 @@ export default function Reports() {
     userSatisfaction: 0
   })
 
-  useEffect(() => {
-    fetchTickets()
-  }, [dateRange])
-
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     try {
       const daysAgo = new Date()
       daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange))
       const resp = await apiFetch('/tickets')
-      let data = resp.data || []
-      // apply date filter client-side
-      data = data.filter((t: any) => new Date(t.created_at) >= daysAgo)
-      if (!(isAdmin || isTechnician)) data = data.filter((t: any) => t.requester_id === user?.id || t.assigned_to_id === user?.id)
+      let data: ReportTicket[] = (resp.data || []) as ReportTicket[]
+      data = data.filter((t) => new Date(t.created_at) >= daysAgo)
+      if (!(isAdmin || isTechnician)) data = data.filter((t) => t.requester_id === (user as any)?.id || t.assigned_to_id === (user as any)?.id)
       setTickets(data)
       processData(data)
     } catch (error) {
@@ -56,15 +52,43 @@ export default function Reports() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange, isAdmin, isTechnician, user])
 
-  const processData = (tickets: any[]) => {
-    // Status distribution
-    const statusData = [
-      { name: 'Abertos', value: tickets.filter(t => t.status === 'Open').length, color: '#3B82F6' },
-      { name: 'Em Andamento', value: tickets.filter(t => t.status === 'In Progress').length, color: '#F59E0B' },
-      { name: 'Resolvidos', value: tickets.filter(t => t.status === 'Resolved').length, color: '#10B981' }
-    ]
+  useEffect(() => {
+    fetchTickets()
+  }, [fetchTickets])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const s = await apiFetch('/settings')
+        setSettings(s)
+        const raw = (s as Record<string, unknown>)
+        const list = Array.isArray((raw as any)?.statuses) ? (raw as any).statuses as StatusSetting[] : []
+        setAvailableStatuses(list.filter((x: StatusSetting) => x.isActive))
+      } catch (err) { void err }
+    })()
+  }, [])
+
+  
+
+  const processData = (tickets: ReportTicket[]) => {
+    // Status distribution (dinâmico via configurações)
+    const knownKeys = new Set<string>()
+    const statusData = (Array.isArray(availableStatuses) ? availableStatuses : []).map((s: StatusSetting) => {
+      const key = normalizeStatusKey(s.name)
+      knownKeys.add(key)
+      return {
+        name: String(s.name),
+        value: tickets.filter((t) => normalizeStatusKey(t.status) === key).length,
+        color: typeof s.color === 'string' && s.color ? s.color : '#6B7280'
+      }
+    })
+    // Agrupar quaisquer status desconhecidos sob "Outros"
+    const othersCount = tickets.filter(t => !knownKeys.has(normalizeStatusKey(t.status))).length
+    if (othersCount > 0) {
+      statusData.push({ name: 'Outros', value: othersCount, color: '#9CA3AF' })
+    }
 
     // Priority distribution
     const priorityData = [
@@ -100,7 +124,8 @@ export default function Reports() {
       monthlyData.push({
         name: date.toLocaleDateString('pt-BR', { month: 'short' }),
         total: monthTickets.length,
-        resolved: monthTickets.filter(t => t.status === 'Resolved').length
+        // Mantém "Resolved" como métrica de resolução principal
+        resolved: monthTickets.filter(t => normalizeStatusKey(t.status) === 'resolved').length
       })
     }
 
@@ -112,7 +137,7 @@ export default function Reports() {
     })
 
     // Calculate metrics
-    const resolvedTickets = tickets.filter(t => t.status === 'Resolved')
+    const resolvedTickets = tickets.filter(t => normalizeStatusKey(t.status) === 'resolved')
     const avgResolutionTime = resolvedTickets.length > 0 
       ? resolvedTickets.reduce((acc, ticket) => {
           const created = new Date(ticket.created_at).getTime()
@@ -123,8 +148,8 @@ export default function Reports() {
 
     setMetrics({
       total: tickets.length,
-      open: tickets.filter(t => t.status === 'Open').length,
-      inProgress: tickets.filter(t => t.status === 'In Progress').length,
+      open: tickets.filter(t => normalizeStatusKey(t.status) === 'open').length,
+      inProgress: tickets.filter(t => normalizeStatusKey(t.status) === 'in-progress').length,
       resolved: resolvedTickets.length,
       avgResolutionTime: Math.round(avgResolutionTime * 10) / 10,
       userSatisfaction: 4.2 // Mock data - would come from user feedback
@@ -273,7 +298,7 @@ export default function Reports() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={60}
                   fill="#8884d8"
                   dataKey="value"
@@ -299,7 +324,7 @@ export default function Reports() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={60}
                   fill="#8884d8"
                   dataKey="value"

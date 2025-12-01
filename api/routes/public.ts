@@ -38,7 +38,7 @@ router.get('/users', (req, res) => {
 })
 
 // Public settings (sanitized) for form configuration
-router.get('/settings', async (req, res) => {
+  router.get('/settings', async (req, res) => {
   try {
     const settings = await readSettings()
     if (!settings) {
@@ -59,6 +59,7 @@ router.get('/settings', async (req, res) => {
       order: f.order || 0,
       isActive: f.isActive !== false,
       options: Array.isArray(f.options) ? f.options : [],
+      optionsFromUsers: !!f.optionsFromUsers,
       placeholder: f.placeholder || '',
       helpText: f.helpText || '',
       defaultValue: f.defaultValue ?? null,
@@ -67,7 +68,8 @@ router.get('/settings', async (req, res) => {
       readonlyPublic: !!f.readonlyPublic
     }))
 
-    res.json({ success: true, data: { formFields: publicFormFields } })
+    const formOrder = Array.isArray((settings as any)?.formOrder) ? (settings as any).formOrder : []
+    res.json({ success: true, data: { formFields: publicFormFields, formOrder } })
   } catch (error) {
     console.error('Erro ao obter configurações públicas:', error)
     res.status(500).json({ success: false, error: 'Falha ao obter configurações públicas' })

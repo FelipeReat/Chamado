@@ -34,6 +34,14 @@ function requireAdmin(req, res, next) {
   next()
 }
 
+function requireConfigAccess(req, res, next) {
+  const user = (req as any).user || {}
+  if (user.role !== 'admin' && user.role !== 'technician') {
+    return res.status(403).json({ success: false, error: 'Acesso negado: apenas administradores ou técnicos' })
+  }
+  next()
+}
+
 // Função para ler configurações
 async function readSettings() {
   try {
@@ -283,7 +291,7 @@ router.post('/settings/statuses/reorder', requireAuth, requireAdmin, async (req,
 // -------------------------
 
 // POST /api/settings/form-fields - Criar novo campo de formulário
-router.post('/settings/form-fields', requireAuth, requireAdmin, async (req, res) => {
+router.post('/settings/form-fields', requireAuth, requireConfigAccess, async (req, res) => {
   try {
     const { user, field } = req.body
     const settings = await readSettings()
@@ -328,7 +336,7 @@ router.post('/settings/form-fields', requireAuth, requireAdmin, async (req, res)
 })
 
 // PUT /api/settings/form-fields/:id - Atualizar campo existente
-router.put('/settings/form-fields/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/settings/form-fields/:id', requireAuth, requireConfigAccess, async (req, res) => {
   try {
     const { user, field } = req.body
     const { id } = req.params
@@ -366,7 +374,7 @@ router.put('/settings/form-fields/:id', requireAuth, requireAdmin, async (req, r
 })
 
 // DELETE /api/settings/form-fields/:id - Remover campo
-router.delete('/settings/form-fields/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/settings/form-fields/:id', requireAuth, requireConfigAccess, async (req, res) => {
   try {
     const { user } = req.body
     const { id } = req.params
@@ -401,7 +409,7 @@ router.delete('/settings/form-fields/:id', requireAuth, requireAdmin, async (req
 })
 
 // POST /api/settings/form-fields/reorder - Reordenar campos
-router.post('/settings/form-fields/reorder', requireAuth, requireAdmin, async (req, res) => {
+router.post('/settings/form-fields/reorder', requireAuth, requireConfigAccess, async (req, res) => {
   try {
     const { user, fieldIds } = req.body
     const settings = await readSettings()
@@ -420,6 +428,15 @@ router.post('/settings/form-fields/reorder', requireAuth, requireAdmin, async (r
     settings.formFields = (settings.formFields || []).map((f: any, index: number) => ({
       ...f,
       order: index + 1
+    }))
+
+    // Persistir ordem global incluindo campos builtin
+    settings.formOrder = Array.isArray(fieldIds) ? fieldIds.map(String) : []
+    const orderMap: Record<string, number> = {}
+    settings.formOrder.forEach((id: string, idx: number) => { orderMap[id] = idx + 1 })
+    settings.formFields = (settings.formFields || []).map((f: any) => ({
+      ...f,
+      order: typeof orderMap[f.id] === 'number' ? orderMap[f.id] : f.order
     }))
 
     addToHistory(settings, 'form_fields_reordered', user?.email || 'sistema', {
@@ -467,7 +484,8 @@ router.post('/settings/kanban-columns', requireAuth, requireAdmin, async (req, r
       color: column?.color || '#fbbf24',
       icon: typeof column?.icon === 'string' ? column.icon : 'Clock',
       order: column?.order || (settings.kanbanColumns?.length || 0) + 1,
-      isActive: column?.isActive ?? true
+      isActive: column?.isActive ?? true,
+      boardId: typeof column?.boardId === 'string' ? column.boardId : undefined
     }
 
     settings.kanbanColumns = settings.kanbanColumns || []
@@ -508,7 +526,8 @@ router.put('/settings/kanban-columns/:id', requireAuth, requireAdmin, async (req
 
     settings.kanbanColumns[idx] = {
       ...settings.kanbanColumns[idx],
-      ...column
+      ...column,
+      boardId: typeof column?.boardId === 'string' ? column.boardId : settings.kanbanColumns[idx].boardId
     }
 
     addToHistory(settings, 'kanban_column_updated', user?.email || 'sistema', {

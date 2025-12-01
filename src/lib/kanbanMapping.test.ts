@@ -6,6 +6,7 @@ describe('kanbanMapping utils', () => {
     expect(normalizeStatusKey('Open')).toBe('open')
     expect(normalizeStatusKey('In Progress')).toBe('in-progress')
     expect(normalizeStatusKey('Resolvido')).toBe('resolved')
+    expect(normalizeStatusKey('Em Andamento')).toBe('in-progress')
     expect(normalizeStatusKey('Custom Status')).toBe('custom-status')
   })
 

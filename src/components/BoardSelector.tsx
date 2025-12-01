@@ -46,6 +46,7 @@ export default function BoardSelector({
       if (boardId) localStorage.setItem('current_board_id', boardId)
       else localStorage.removeItem('current_board_id')
     } catch {}
+    try { window.dispatchEvent(new CustomEvent('boardChanged')) } catch {}
   }, [boardId])
 
   // Persiste nome do board atual para indicar contexto
