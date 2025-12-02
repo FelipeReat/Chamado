@@ -16,7 +16,17 @@ import { normalizeStatusKey } from '../lib/kanbanMapping'
 
 export default function Reports() {
   const { user, isAdmin, isTechnician } = useAuth()
-  type ReportTicket = { id: string; title: string; status: string; priority: string; category: string; created_at: string; updated_at: string }
+  type ReportTicket = {
+    id: string
+    title: string
+    status: string
+    priority: string
+    category: string
+    created_at: string
+    updated_at: string
+    requester_id?: string
+    assigned_to_id?: string | null
+  }
   interface StatusSetting { name: string; color?: string; isActive?: boolean }
   const [tickets, setTickets] = useState<ReportTicket[]>([])
   const [loading, setLoading] = useState(true)
@@ -525,7 +535,7 @@ export default function Reports() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={(props) => `${(props as any).name ?? ''} ${(((props as any).percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={60}
                   fill="#8884d8"
                   dataKey="value"
@@ -551,7 +561,7 @@ export default function Reports() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={(props) => `${(props as any).name ?? ''} ${(((props as any).percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={60}
                   fill="#8884d8"
                   dataKey="value"

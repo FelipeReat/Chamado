@@ -10,6 +10,7 @@ import express, {
 import cors from 'cors'
 import path from 'path'
 import dotenv from 'dotenv'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth-local.js'
 import notificationRoutes from './routes/notifications-simple.js'
@@ -24,12 +25,20 @@ import boardsRoutes from './routes/boards.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// load env (override explicit env to ensure consistent deploy config)
-dotenv.config({ override: true })
+const mode = process.env.NODE_ENV || 'development'
+const envPath = mode === 'production' && fs.existsSync(path.join(process.cwd(), '.env.production'))
+  ? path.join(process.cwd(), '.env.production')
+  : path.join(process.cwd(), '.env')
+dotenv.config({ path: envPath, override: true })
 
 const app: express.Application = express()
 
+const allowedOriginsFromEnv = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
 const allowedOrigins = [
+  ...allowedOriginsFromEnv,
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'http://localhost:5173',
   'http://localhost:5174',
