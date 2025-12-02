@@ -104,6 +104,16 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(() => {
+    const es = new EventSource('/api/notifications/stream')
+    const onCreated = () => { fetchTickets() }
+    es.addEventListener('ticket-created', onCreated as any)
+    return () => {
+      try { es.removeEventListener('ticket-created', onCreated as any) } catch (e) { void e }
+      try { es.close() } catch (e) { void e }
+    }
+  }, [boardId])
+
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     try {
       try {

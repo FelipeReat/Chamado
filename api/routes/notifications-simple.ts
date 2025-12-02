@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Response } from 'express'
 import { 
   sendTicketCreatedNotification, 
   sendTicketUpdatedNotification, 
@@ -8,11 +8,36 @@ import {
 
 const router = Router()
 
+const subscribers: Set<Response> = new Set()
+
+router.get('/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  try {
+    // @ts-ignore
+    res.flushHeaders?.()
+  } catch {}
+  res.write('retry: 2000\n\n')
+  subscribers.add(res)
+  req.on('close', () => {
+    subscribers.delete(res)
+    try { res.end() } catch {}
+  })
+})
+
 // Mock implementations - notifications will be logged to console
 router.post('/ticket-created', async (req, res) => {
   try {
     const { ticketId, assignedToId } = req.body
     console.log(`📧 Ticket created notification: Ticket ${ticketId}, Assigned to: ${assignedToId}`)
+    const payload = JSON.stringify({ ticketId, assignedToId })
+    subscribers.forEach((s) => {
+      try {
+        s.write(`event: ticket-created\n`)
+        s.write(`data: ${payload}\n\n`)
+      } catch {}
+    })
     res.json({ success: true, message: 'Notification logged to console (email service not configured)' })
   } catch (error) {
     console.error('Error in ticket created notification:', error)

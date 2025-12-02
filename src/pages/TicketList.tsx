@@ -52,6 +52,16 @@ export default function TicketList() {
   }, [boardId, filters, isAdmin, isTechnician, user])
 
   useEffect(() => {
+    const es = new EventSource('/api/notifications/stream')
+    const onCreated = () => { fetchTickets() }
+    es.addEventListener('ticket-created', onCreated as any)
+    return () => {
+      try { es.removeEventListener('ticket-created', onCreated as any) } catch (e) { void e }
+      try { es.close() } catch (e) { void e }
+    }
+  }, [fetchTickets])
+
+  useEffect(() => {
     fetchTickets()
   }, [fetchTickets])
 
@@ -112,7 +122,7 @@ export default function TicketList() {
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     try {
-      try { console.log('[TicketList] updateTicketStatus', { ticketId, newStatus }) } catch {}
+      try { console.log('[TicketList] updateTicketStatus', { ticketId, newStatus }) } catch (e) { void e }
       // Usa boardId da página, com fallback ao localStorage
       let currentBoardId: string | null = boardId
       try {
