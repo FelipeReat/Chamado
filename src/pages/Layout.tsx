@@ -56,6 +56,7 @@ export default function Layout() {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
+                <img src="/favicon.svg" alt="Chamados" className="w-6 h-6 mr-2" />
                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Chamados</h1>
               </div>
               

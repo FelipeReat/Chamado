@@ -24,6 +24,7 @@ export default function Reports() {
     category: string
     created_at: string
     updated_at: string
+    resolved_at?: string | null
     requester_id?: string
     assigned_to_id?: string | null
   }
