@@ -9520,5 +9520,41 @@
         "after": null
       }
     }
+  },
+  {
+    "id": "e63890f4-9685-465c-8757-85e16323e570",
+    "timestamp": "2025-12-02T20:54:20.572Z",
+    "change": {
+      "status": {
+        "before": "Open",
+        "after": "In Progress"
+      },
+      "board_id": {
+        "before": "22611447-d47f-418f-baf2-f657d9da982d",
+        "after": "22611447-d47f-418f-baf2-f657d9da982d"
+      },
+      "assigned_to_id": {
+        "before": null,
+        "after": null
+      }
+    }
+  },
+  {
+    "id": "e63890f4-9685-465c-8757-85e16323e570",
+    "timestamp": "2025-12-02T20:54:20.968Z",
+    "change": {
+      "status": {
+        "before": "In Progress",
+        "after": "In Progress"
+      },
+      "board_id": {
+        "before": "22611447-d47f-418f-baf2-f657d9da982d",
+        "after": "22611447-d47f-418f-baf2-f657d9da982d"
+      },
+      "assigned_to_id": {
+        "before": null,
+        "after": null
+      }
+    }
   }
 ]

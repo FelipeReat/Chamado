@@ -145,12 +145,12 @@
     "description": "assigned",
     "category": "Software",
     "priority": "Low",
-    "status": "Open",
+    "status": "In Progress",
     "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
     "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
     "assigned_to_id": null,
     "created_at": "2025-11-10T21:16:25.926Z",
-    "updated_at": "2025-12-02T13:20:21.217Z",
+    "updated_at": "2025-12-02T20:54:20.966Z",
     "resolved_at": null
   },
   {
@@ -215,6 +215,24 @@
     },
     "created_at": "2025-12-01T19:10:25.975Z",
     "updated_at": "2025-12-02T13:14:58.161Z",
+    "resolved_at": null
+  },
+  {
+    "id": "44dcf6cb-a7a9-47f7-a98d-f86363eddd52",
+    "title": "teste",
+    "description": "teste",
+    "category": "Network",
+    "priority": "High",
+    "status": "Open",
+    "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
+    "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
+    "assigned_to_id": null,
+    "custom_fields": {
+      "name": "T�cnico Um",
+      "attachments": []
+    },
+    "created_at": "2025-12-02T20:16:55.870Z",
+    "updated_at": "2025-12-02T20:16:55.870Z",
     "resolved_at": null
   }
 ]

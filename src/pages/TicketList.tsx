@@ -52,12 +52,35 @@ export default function TicketList() {
   }, [boardId, filters, isAdmin, isTechnician, user])
 
   useEffect(() => {
-    const es = new EventSource('/api/notifications/stream')
+    const envBase = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || ''
+    const looksLikePreview = (b: string) => b.includes('localhost:5006') || b.includes('localhost:5173') || b.includes('localhost:5174')
+    const API_BASE = (!envBase || looksLikePreview(envBase)) ? 'http://localhost:3000' : envBase
+    let es: EventSource | null = null
     const onCreated = () => { fetchTickets() }
-    es.addEventListener('ticket-created', onCreated as any)
+    let stopped = false
+    const open = async () => {
+      if (stopped) return
+      try {
+        const res = await fetch(`${API_BASE}/api/health`)
+        if (!res.ok) throw new Error('unhealthy')
+        es = new EventSource(`${API_BASE}/api/notifications/stream`)
+        es.addEventListener('ticket-created', onCreated as any)
+        es.onerror = () => {
+          try { es?.close() } catch (e) { void e }
+          es = null
+          setTimeout(open, 5000)
+        }
+      } catch (e) {
+        setTimeout(open, 5000)
+      }
+    }
+    open()
     return () => {
-      try { es.removeEventListener('ticket-created', onCreated as any) } catch (e) { void e }
-      try { es.close() } catch (e) { void e }
+      stopped = true
+      if (es) {
+        try { es.removeEventListener('ticket-created', onCreated as any) } catch (e) { void e }
+        try { es.close() } catch (e) { void e }
+      }
     }
   }, [fetchTickets])
 
