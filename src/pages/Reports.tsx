@@ -354,6 +354,30 @@ export default function Reports() {
             CSV
           </button>
         </div>
+      
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Filter className="w-4 h-4 text-gray-500" />
+        <select value={filters.status} onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todos Status</option>
+          {(availableStatuses || []).map((s: any) => (
+            <option key={s.id || s.name} value={s.name}>{s.name}</option>
+          ))}
+        </select>
+        <select value={filters.category} onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todas Categorias</option>
+          {["Hardware","Software","Network","Other"].map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select value={filters.boardId} onChange={(e) => setFilters(prev => ({ ...prev, boardId: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todos Boards</option>
+          {boards.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}
+        </select>
+        <select value={filters.technicianId} onChange={(e) => setFilters(prev => ({ ...prev, technicianId: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
+          <option value="">Todos Técnicos</option>
+          {technicians.map(t => (<option key={t.id} value={t.id}>{t.name || t.email}</option>))}
+        </select>
       </div>
 
       {/* Heatmap de criação por dia/hora */}
@@ -434,8 +458,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Filtros Avançados */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      
         <Filter className="w-4 h-4 text-gray-500" />
         <select value={filters.status} onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))} className="px-2 py-2 border border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-900 dark:text-gray-100">
           <option value="">Todos Status</option>
