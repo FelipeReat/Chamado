@@ -39,40 +39,12 @@
   ],
   "formFields": [
     {
-      "id": "1764621591895",
-      "name": "assigned_to_id",
-      "label": "assigned_to_id",
-      "type": "text",
-      "required": false,
-      "order": 1,
-      "isActive": false,
-      "validation": {},
-      "options": [],
-      "placeholder": "",
-      "helpText": "",
-      "defaultValue": null
-    },
-    {
-      "id": "1764621593682",
-      "name": "email",
-      "label": "email",
-      "type": "text",
-      "required": false,
-      "order": 2,
-      "isActive": false,
-      "validation": {},
-      "options": [],
-      "placeholder": "",
-      "helpText": "",
-      "defaultValue": null
-    },
-    {
       "id": "1764685394612",
       "name": "name",
       "label": "Seu nome",
       "type": "select",
       "required": true,
-      "order": 3,
+      "order": 1,
       "isActive": true,
       "validation": {},
       "options": [
@@ -88,6 +60,34 @@
       "placeholder": "",
       "helpText": "",
       "defaultValue": ""
+    },
+    {
+      "id": "1764621593682",
+      "name": "email",
+      "label": "email",
+      "type": "text",
+      "required": false,
+      "order": 6,
+      "isActive": false,
+      "validation": {},
+      "options": [],
+      "placeholder": "",
+      "helpText": "",
+      "defaultValue": null
+    },
+    {
+      "id": "1764621591895",
+      "name": "assigned_to_id",
+      "label": "assigned_to_id",
+      "type": "text",
+      "required": false,
+      "order": 7,
+      "isActive": false,
+      "validation": {},
+      "options": [],
+      "placeholder": "",
+      "helpText": "",
+      "defaultValue": null
     }
   ],
   "kanbanColumns": [
@@ -147,6 +147,74 @@
   ],
   "permissions": {},
   "history": [
+    {
+      "id": "1764958697986",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-12-05T18:18:17.986Z",
+      "details": {
+        "newOrder": [
+          "1764685394612",
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "builtin:priority",
+          "1764621593682",
+          "1764621591895"
+        ]
+      }
+    },
+    {
+      "id": "1764958696795",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-12-05T18:18:16.795Z",
+      "details": {
+        "newOrder": [
+          "builtin:title",
+          "1764685394612",
+          "builtin:description",
+          "builtin:category",
+          "builtin:priority",
+          "1764621593682",
+          "1764621591895"
+        ]
+      }
+    },
+    {
+      "id": "1764958695544",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-12-05T18:18:15.544Z",
+      "details": {
+        "newOrder": [
+          "builtin:title",
+          "builtin:description",
+          "1764685394612",
+          "builtin:category",
+          "builtin:priority",
+          "1764621593682",
+          "1764621591895"
+        ]
+      }
+    },
+    {
+      "id": "1764958693768",
+      "action": "form_fields_reordered",
+      "user": "admin@empresa.com",
+      "timestamp": "2025-12-05T18:18:13.768Z",
+      "details": {
+        "newOrder": [
+          "builtin:title",
+          "builtin:description",
+          "builtin:category",
+          "1764685394612",
+          "builtin:priority",
+          "1764621593682",
+          "1764621591895"
+        ]
+      }
+    },
     {
       "id": "1764685394612",
       "action": "form_field_created",
@@ -601,14 +669,14 @@
     }
   ],
   "createdAt": "2025-12-01T20:38:32.977Z",
-  "updatedAt": "2025-12-02T14:23:14.612Z",
+  "updatedAt": "2025-12-05T18:18:17.986Z",
   "formOrder": [
-    "builtin:name",
+    "1764685394612",
     "builtin:title",
     "builtin:description",
     "builtin:category",
     "builtin:priority",
-    "builtin:email",
-    "builtin:assigned_to_id"
+    "1764621593682",
+    "1764621591895"
   ]
 }
