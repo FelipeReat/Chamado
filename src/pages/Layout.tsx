@@ -6,6 +6,7 @@ import {
   List, 
   Users, 
   BarChart3, 
+  LayoutGrid,
   LogOut, 
   User,
   Menu,
@@ -35,6 +36,10 @@ export default function Layout() {
     { name: 'Novo Chamado', href: '/chamados/novo', icon: PlusCircle },
     { name: 'Meus Chamados', href: '/chamados', icon: List },
   ]
+
+  if (isAdmin) {
+    navigation.push({ name: 'Dashboard Técnico', href: '/dashboard-tecnico', icon: LayoutGrid })
+  }
 
   if (isAdmin || isTechnician) {
     navigation.push(
@@ -190,9 +195,11 @@ export default function Layout() {
       </nav>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden py-8">
-        <div className="w-full max-w-none px-4 sm:px-6 lg:px-8">
-          <Outlet />
+      <main className="flex-1 min-h-0">
+        <div className="h-full overflow-y-auto py-8">
+          <div className="w-full h-full max-w-none px-4 sm:px-6 lg:px-8">
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>

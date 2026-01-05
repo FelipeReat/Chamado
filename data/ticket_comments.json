@@ -1,16 +1,1 @@
-[
-  {
-    "id": "f2bd6ce2-3755-440a-9c68-d8cd588e7362",
-    "ticket_id": "e691dc27-08de-4e0d-8f4b-86dd3f6f68ac",
-    "user_id": "245dd13a-98e7-44db-94f1-f82e7f01a6c2",
-    "content": "Coment�rio <script>alert(1)</script>",
-    "created_at": "2025-11-10T20:54:03.939Z"
-  },
-  {
-    "id": "8dc7fe1c-eb93-4b84-81d9-19c514059d77",
-    "ticket_id": "22173cc9-cb8f-41b5-b8e0-7f8590461134",
-    "user_id": "ff4d0340-27ed-4a1e-83d4-0d675fde5713",
-    "content": "Comentario <script>alert(1)</script>",
-    "created_at": "2025-11-10T20:54:59.859Z"
-  }
-]
+[]

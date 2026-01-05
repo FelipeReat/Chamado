@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./hooks/useAuth"
 import Login from "./pages/Login"
 import Layout from "./pages/Layout"
 import Dashboard from "./pages/Dashboard"
+import TechnicianDashboard from "./pages/TechnicianDashboard"
 import NewTicket from "./pages/NewTicket"
 import TicketList from "./pages/TicketList"
 import TicketDetails from "./pages/TicketDetails"
@@ -25,6 +26,12 @@ function ProtectedRoute() {
   return user ? <Outlet /> : <Navigate to="/" replace />
 }
 
+function DashboardRoute() {
+  const { isTechnician, isAdmin } = useAuth()
+  if (isTechnician && !isAdmin) return <TechnicianDashboard />
+  return <Dashboard />
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -33,7 +40,8 @@ function AppRoutes() {
       <Route path="/formulario-chamado" element={<PublicTicketForm />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<DashboardRoute />} />
+          <Route path="/dashboard-tecnico" element={<TechnicianDashboard />} />
           <Route path="/chamados/novo" element={<NewTicket />} />
           <Route path="/chamados" element={<TicketList />} />
           <Route path="/chamados/:id" element={<TicketDetails />} />

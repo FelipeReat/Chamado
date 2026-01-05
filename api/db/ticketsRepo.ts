@@ -87,3 +87,22 @@ export async function dbAddComment(ticketId: string, userId: string, content: st
   return res.rows[0]
 }
 
+export async function dbPurgeAllTickets() {
+  const pool = getPool()
+  if (!pool) throw new Error('Pool não inicializado')
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('DELETE FROM ticket_audit')
+    await client.query('DELETE FROM ticket_comments')
+    const res = await client.query('DELETE FROM tickets')
+    await client.query('COMMIT')
+    return { deleted: res.rowCount || 0 }
+  } catch (e) {
+    try { await client.query('ROLLBACK') } catch {}
+    throw e
+  } finally {
+    client.release()
+  }
+}
+

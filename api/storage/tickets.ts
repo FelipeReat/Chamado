@@ -224,3 +224,12 @@ export function addComment(ticketId: string, userId: string, content: string): T
   saveComments(comments)
   return record
 }
+
+export function purgeAllTickets() {
+  ensureFiles()
+  const deleted = getTickets().length
+  saveTickets([])
+  saveComments([])
+  fs.writeFileSync(auditFile, JSON.stringify([], null, 2), 'utf-8')
+  return { deleted }
+}

@@ -172,6 +172,24 @@ export default function TicketDetails() {
     }
   }
 
+  const handleAssignTechnician = async (technicianId: string) => {
+    try {
+      const resp = await apiFetch(`/tickets/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ assigned_to_id: technicianId || null })
+      })
+      setTicket((prev: any) => prev ? { 
+        ...prev, 
+        assigned_to_id: resp.data.assigned_to_id,
+        assigned_to: technicians.find((t: any) => t.id === resp.data.assigned_to_id) || null
+      } : null)
+      toast.success('Técnico atualizado com sucesso!')
+    } catch (error) {
+      console.error('Error assigning technician:', error)
+      toast.error('Erro ao atualizar técnico')
+    }
+  }
+
   const sendCommentNotification = async (comment: any) => {
     try {
       // Notify ticket requester if comment is from someone else
@@ -373,6 +391,31 @@ export default function TicketDetails() {
                 <span className="text-sm text-gray-900 dark:text-gray-100">
                   {(ticket as any)?.custom_fields?.name || ticket.requester?.name || ticket.requester?.email}
                 </span>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Técnico Responsável</h3>
+              <div className="flex items-center">
+                <User className="w-4 h-4 text-gray-400 mr-2" />
+                {canChangeStatus ? (
+                  <select
+                    value={ticket.assigned_to_id || ''}
+                    onChange={(e) => handleAssignTechnician(e.target.value)}
+                    className="text-sm border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 py-1"
+                  >
+                    <option value="">Não atribuído</option>
+                    {technicians.map((tech) => (
+                      <option key={tech.id} value={tech.id}>
+                        {tech.name || tech.email}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-gray-900 dark:text-gray-100">
+                    {ticket.assigned_to?.name || ticket.assigned_to?.email || 'Não atribuído'}
+                  </span>
+                )}
               </div>
             </div>
 

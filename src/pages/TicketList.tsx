@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
-import { Search, Filter, Plus } from 'lucide-react'
+import { Search, Filter, Plus, Upload, FileSpreadsheet, X } from 'lucide-react'
 import TicketKanbanView from '../components/TicketKanbanView'
 import { statusStyleFromSettings } from '../lib/statusColors'
 import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
@@ -11,6 +11,7 @@ export default function TicketList() {
   const { user, isAdmin, isTechnician } = useAuth()
   type ListTicket = { id: string; title: string; description: string; category: string; priority: string; status: string; created_at: string; updated_at?: string; board_id?: string | null; requester?: { email?: string; name?: string; user_metadata?: { full_name?: string } }; assigned_to?: { email?: string; name?: string; user_metadata?: { full_name?: string } }; assigned_to_id?: string; requester_id?: string }
   interface StatusSetting { name: string; color?: string; isActive?: boolean }
+  type ImportRow = { title: string; description: string; category: string; priority: string; status: string; rowNumber: number; source: Record<string, unknown> }
   const [tickets, setTickets] = useState<ListTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -22,7 +23,7 @@ export default function TicketList() {
   })
   const [showFilters, setShowFilters] = useState(false)
   const { viewMode, setViewMode } = useViewPreferences()
-  const [boardId, setBoardId] = useState<string | null>(() => {
+  const [boardId] = useState<string | null>(() => {
     try {
       return localStorage.getItem('current_board_id') || null
     } catch { return null }
@@ -32,6 +33,13 @@ export default function TicketList() {
   const priorities = ['Low', 'Medium', 'High', 'Urgent']
   const [statusOptions, setStatusOptions] = useState<string[]>([])
   const [settings, setSettings] = useState<Record<string, unknown> | null>(null)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importErrors, setImportErrors] = useState<{ rowNumber: number; message: string }[]>([])
+  const [importFileName, setImportFileName] = useState<string | null>(null)
+  const [importParsingError, setImportParsingError] = useState<string | null>(null)
+  const [importResult, setImportResult] = useState<{ total: number; success: number; failed: number } | null>(null)
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -42,7 +50,8 @@ export default function TicketList() {
       if (filters.priority) data = data.filter((t) => t.priority === filters.priority)
       if (filters.category) data = data.filter((t) => t.category === filters.category)
       if (filters.assigned_to) data = data.filter((t) => t.assigned_to_id === filters.assigned_to)
-      if (!(isAdmin || isTechnician)) data = data.filter((t) => t.requester_id === (user as any)?.id || t.assigned_to_id === (user as any)?.id)
+      const currentUserId = (user as unknown as { id?: string } | null)?.id
+      if (!(isAdmin || isTechnician)) data = data.filter((t) => t.requester_id === currentUserId || t.assigned_to_id === currentUserId)
       setTickets(data)
     } catch (error) {
       console.error('Error fetching tickets:', error)
@@ -56,7 +65,7 @@ export default function TicketList() {
     const looksLikePreview = (b: string) => b.includes('localhost:5006') || b.includes('localhost:5173') || b.includes('localhost:5174')
     const API_BASE = (!envBase || looksLikePreview(envBase)) ? 'http://localhost:3000' : envBase
     let es: EventSource | null = null
-    const onCreated = () => { fetchTickets() }
+    const onCreated: EventListener = () => { void fetchTickets() }
     let stopped = false
     const open = async () => {
       if (stopped) return
@@ -64,13 +73,13 @@ export default function TicketList() {
         const res = await fetch(`${API_BASE}/api/health`)
         if (!res.ok) throw new Error('unhealthy')
         es = new EventSource(`${API_BASE}/api/notifications/stream`)
-        es.addEventListener('ticket-created', onCreated as any)
+        es.addEventListener('ticket-created', onCreated)
         es.onerror = () => {
           try { es?.close() } catch (e) { void e }
           es = null
           setTimeout(open, 5000)
         }
-      } catch (e) {
+      } catch {
         setTimeout(open, 5000)
       }
     }
@@ -78,7 +87,7 @@ export default function TicketList() {
     return () => {
       stopped = true
       if (es) {
-        try { es.removeEventListener('ticket-created', onCreated as any) } catch (e) { void e }
+        try { es.removeEventListener('ticket-created', onCreated) } catch (e) { void e }
         try { es.close() } catch (e) { void e }
       }
     }
@@ -123,8 +132,8 @@ export default function TicketList() {
 
   const getStatusStyle = (status: string) => {
     const raw: unknown = settings
-    const statuses = Array.isArray((raw as { statuses?: StatusSetting[] } | null)?.statuses) ? ((raw as { statuses?: StatusSetting[] } | null)?.statuses as StatusSetting[]) : []
-    return statusStyleFromSettings(statuses as any[], status)
+    const statuses: StatusSetting[] = Array.isArray((raw as { statuses?: StatusSetting[] } | null)?.statuses) ? ((raw as { statuses?: StatusSetting[] } | null)?.statuses as StatusSetting[]) : []
+    return statusStyleFromSettings(statuses, status)
   }
 
   const handleFilterChange = (key: string, value: string) => {
@@ -141,6 +150,199 @@ export default function TicketList() {
       category: '',
       assigned_to: ''
     })
+  }
+
+  const normalizeTextKey = (value: string) => {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  }
+
+  const getCellString = (value: unknown) => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value.trim()
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'boolean') return value ? 'true' : 'false'
+    if (value instanceof Date) return value.toISOString()
+    return String(value).trim()
+  }
+
+  const pickValue = (obj: Record<string, unknown>, candidates: string[]) => {
+    const keys = Object.keys(obj)
+    const normalizedMap = new Map<string, string>()
+    for (const k of keys) normalizedMap.set(normalizeTextKey(k), k)
+    for (const c of candidates) {
+      const found = normalizedMap.get(normalizeTextKey(c))
+      if (found) return obj[found]
+    }
+    return undefined
+  }
+
+  const parsePriority = (value: string) => {
+    const v = normalizeTextKey(value)
+    if (v.includes('urgent') || v.includes('urgente')) return 'Urgent'
+    if (v.includes('high') || v.includes('alta')) return 'High'
+    if (v.includes('medium') || v.includes('media') || v.includes('média')) return 'Medium'
+    if (v.includes('low') || v.includes('baixa')) return 'Low'
+    if (priorities.includes(value)) return value
+    return 'Medium'
+  }
+
+  const parseCategory = (value: string) => {
+    const v = normalizeTextKey(value)
+    const match =
+      categories.find((c) => normalizeTextKey(c) === v) ||
+      (v.includes('rede') || v.includes('network') ? 'Rede' : null) ||
+      (v.includes('email') ? 'Email' : null) ||
+      (v.includes('hardware') ? 'Hardware' : null) ||
+      (v.includes('software') ? 'Software' : null) ||
+      (v.includes('sistema') || v.includes('system') ? 'Sistema' : null)
+    return match || 'Outro'
+  }
+
+  const parseStatus = (value: string) => {
+    const v = value.trim()
+    if (!v) return 'Open'
+    if (statusOptions.includes(v)) return v
+    const norm = normalizeTextKey(v)
+    const normalizedOption = statusOptions.find((opt) => normalizeTextKey(opt) === norm)
+    if (normalizedOption) return normalizedOption
+    if (norm === 'open' || norm === 'aberto' || norm.includes('a fazer') || norm.includes('todo') || norm.includes('to do') || norm.includes('backlog') || norm.includes('pendente')) return 'Open'
+    if (norm.includes('progress') || norm.includes('andamento') || norm.includes('fazendo') || norm.includes('doing') || norm.includes('em progresso') || norm.includes('iniciado')) return 'In Progress'
+    if (norm.includes('resolved') || norm.includes('resolvido') || norm.includes('concluido') || norm.includes('concluído') || norm.includes('finalizado') || norm.includes('done')) return 'Resolved'
+    return 'Open'
+  }
+
+  const resetImportState = () => {
+    setImportRows([])
+    setImportErrors([])
+    setImportFileName(null)
+    setImportParsingError(null)
+    setImportResult(null)
+  }
+
+  const closeImportModal = () => {
+    if (importing) return
+    setShowImportModal(false)
+    resetImportState()
+  }
+
+  const handleSelectImportFile = async (file: File) => {
+    setImportParsingError(null)
+    setImportErrors([])
+    setImportRows([])
+    setImportResult(null)
+    setImportFileName(file.name)
+
+    try {
+      const xlsxModule: unknown = await import('xlsx')
+      const XLSX = (
+        (xlsxModule as { default?: unknown }).default ??
+        xlsxModule
+      ) as { read?: (data: ArrayBuffer, opts: Record<string, unknown>) => { SheetNames: string[]; Sheets: Record<string, unknown> }; utils?: { sheet_to_json?: <T>(sheet: unknown, opts: Record<string, unknown>) => T[] } }
+
+      if (typeof XLSX.read !== 'function' || typeof XLSX.utils?.sheet_to_json !== 'function') {
+        throw new Error('Falha ao carregar leitor de Excel')
+      }
+
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true })
+      const sheetName = wb.SheetNames[0]
+      if (!sheetName) throw new Error('Arquivo sem planilhas')
+      const sheet = wb.Sheets[sheetName]
+      if (!sheet) throw new Error('Planilha inválida')
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
+      const parsed: ImportRow[] = rows
+        .map((r, idx) => {
+          const titleRaw = pickValue(r, ['titulo', 'título', 'title', 'assunto', 'subject', 'resumo', 'summary'])
+          const descRaw = pickValue(r, ['descricao', 'descrição', 'description', 'detalhes', 'details', 'mensagem', 'message', 'observacao', 'observação', 'obs', 'body'])
+          const categoryRaw = pickValue(r, ['categoria', 'category', 'tipo', 'type'])
+          const labelsRaw = pickValue(r, ['etiquetas', 'labels', 'tags'])
+          const priorityRaw = pickValue(r, ['prioridade', 'priority', 'urgencia', 'urgência'])
+          const statusRaw = pickValue(r, ['fase atual', 'fase', 'coluna', 'lista', 'status', 'situacao', 'situação', 'state'])
+
+          const title = getCellString(titleRaw)
+          const description = getCellString(descRaw)
+          const labelsText = getCellString(labelsRaw)
+          const categoryText = getCellString(categoryRaw) || labelsText
+          const priorityText = getCellString(priorityRaw) || labelsText
+          const category = parseCategory(categoryText)
+          const priority = parsePriority(priorityText)
+          const status = parseStatus(getCellString(statusRaw))
+
+          return { title, description, category, priority, status, rowNumber: idx + 2, source: r }
+        })
+        .filter((r) => r.title || r.description)
+
+      if (parsed.length === 0) {
+        throw new Error('Nenhuma linha válida encontrada. Inclua pelo menos uma coluna de título ou descrição.')
+      }
+
+      const invalid = parsed.filter((r) => !r.title)
+      if (invalid.length > 0) {
+        setImportErrors(invalid.slice(0, 50).map((r) => ({ rowNumber: r.rowNumber, message: 'Título obrigatório ausente' })))
+      }
+
+      setImportRows(parsed)
+    } catch (e) {
+      setImportParsingError(e instanceof Error ? e.message : 'Falha ao ler o arquivo')
+    }
+  }
+
+  const runImport = async () => {
+    if (!(isAdmin || isTechnician)) return
+    if (importing) return
+    const rows = importRows.filter((r) => r.title)
+    if (rows.length === 0) return
+
+    setImporting(true)
+    setImportErrors([])
+    setImportResult({ total: rows.length, success: 0, failed: 0 })
+    try {
+      let currentBoardId: string | null = boardId
+      try {
+        if (!currentBoardId) currentBoardId = localStorage.getItem('current_board_id') || null
+      } catch { currentBoardId = null }
+
+      let success = 0
+      let failed = 0
+      const nextErrors: { rowNumber: number; message: string }[] = []
+
+      for (const row of rows) {
+        try {
+          const resp = await apiFetch('/tickets', {
+            method: 'POST',
+            body: JSON.stringify({
+              title: row.title,
+              description: row.description,
+              category: row.category || 'Outro',
+              priority: row.priority || 'Medium',
+              status: row.status || 'Open',
+              assigned_to_id: null,
+              board_id: currentBoardId,
+              custom_fields: { import_source: 'excel', import_original: row.source }
+            })
+          })
+          const ok = Boolean((resp as unknown as { data?: { id?: string } }).data?.id)
+          if (ok) success += 1
+          else failed += 1
+        } catch (e) {
+          failed += 1
+          nextErrors.push({ rowNumber: row.rowNumber, message: e instanceof Error ? e.message : 'Erro ao criar chamado' })
+        }
+        setImportResult({ total: rows.length, success, failed })
+        await new Promise((r) => setTimeout(r, 30))
+      }
+
+      setImportErrors(nextErrors.slice(0, 200))
+      await fetchTickets()
+    } finally {
+      setImporting(false)
+    }
   }
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
@@ -199,7 +401,7 @@ export default function TicketList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={viewMode === 'kanban' ? 'flex flex-col h-full min-h-0 gap-6' : 'space-y-6'}>
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
@@ -210,6 +412,16 @@ export default function TicketList() {
         </div>
         <div className="mt-4 sm:mt-0 flex items-center gap-3">
           <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
+          {(isAdmin || isTechnician) && (
+            <button
+              type="button"
+              onClick={() => { setShowImportModal(true); resetImportState() }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Importar Cards (Excel)
+            </button>
+          )}
           <Link
             to="/chamados/novo"
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -320,8 +532,9 @@ export default function TicketList() {
         )}
       </div>
 
-      {viewMode === 'list' ? (
-        <>
+      <div className={`transition-all duration-300 ease-in-out min-h-0 ${viewMode === 'kanban' ? 'h-[70vh]' : ''}`}>
+        {viewMode === 'list' ? (
+          <>
       {/* Tickets Table - Desktop */}
       <div className="hidden md:block bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md transition-colors">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -480,16 +693,17 @@ export default function TicketList() {
         ))}
       </div>
         </>
-      ) : (
-        <div className="h-full min-h-0">
-          <TicketKanbanView
-            tickets={filteredTickets as unknown as import('../lib/supabase').Ticket[]}
-            getStatusStyle={getStatusStyle}
-            getPriorityColor={getPriorityColor}
-            onStatusChange={updateTicketStatus}
-          />
-        </div>
-      )}
+        ) : (
+          <div className="h-full min-h-0">
+            <TicketKanbanView
+              tickets={filteredTickets as unknown as import('../lib/supabase').Ticket[]}
+              getStatusStyle={getStatusStyle}
+              getPriorityColor={getPriorityColor}
+              onStatusChange={updateTicketStatus}
+            />
+          </div>
+        )}
+      </div>
 
       {filteredTickets.length === 0 && (
         <div className="text-center py-12">
@@ -509,6 +723,138 @@ export default function TicketList() {
             <Plus className="w-4 h-4 mr-2" />
             Criar Primeiro Chamado
           </Link>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Importar cards via Excel</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeImportModal}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5 text-gray-500 dark:text-gray-300" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <label className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer w-fit">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Selecionar arquivo
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) void handleSelectImportFile(f)
+                        e.currentTarget.value = ''
+                      }}
+                      disabled={importing}
+                    />
+                  </label>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
+                    {importFileName ? importFileName : 'Nenhum arquivo selecionado'}
+                  </div>
+                </div>
+
+                {importParsingError && (
+                  <div className="text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-3">
+                    {importParsingError}
+                  </div>
+                )}
+
+                {importRows.length > 0 && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700 p-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div className="text-sm text-gray-700 dark:text-gray-200">
+                        Linhas lidas: <span className="font-medium">{importRows.length}</span> (título obrigatório)
+                      </div>
+                      <button
+                        type="button"
+                        onClick={runImport}
+                        disabled={importing || importRows.filter((r) => r.title).length === 0}
+                        className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400"
+                      >
+                        {importing ? 'Importando...' : 'Importar'}
+                      </button>
+                    </div>
+
+                    {importResult && (
+                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Sucesso: {importResult.success} | Falhas: {importResult.failed} | Total: {importResult.total}
+                      </div>
+                    )}
+
+                    <div className="mt-3 overflow-auto max-h-56">
+                      <table className="min-w-full text-sm">
+                        <thead className="text-gray-500 dark:text-gray-400">
+                          <tr>
+                            <th className="text-left py-1 pr-3">Linha</th>
+                            <th className="text-left py-1 pr-3">Título</th>
+                            <th className="text-left py-1 pr-3">Categoria</th>
+                            <th className="text-left py-1 pr-3">Prioridade</th>
+                            <th className="text-left py-1 pr-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-gray-700 dark:text-gray-200">
+                          {importRows.slice(0, 10).map((r) => (
+                            <tr key={r.rowNumber} className="border-t border-gray-200 dark:border-gray-800">
+                              <td className="py-1 pr-3 whitespace-nowrap">{r.rowNumber}</td>
+                              <td className="py-1 pr-3 max-w-[22rem] truncate">{r.title || '(sem título)'}</td>
+                              <td className="py-1 pr-3 whitespace-nowrap">{r.category}</td>
+                              <td className="py-1 pr-3 whitespace-nowrap">{r.priority}</td>
+                              <td className="py-1 pr-3 whitespace-nowrap">{r.status}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {importRows.length > 10 && (
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Mostrando 10 de {importRows.length}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {importErrors.length > 0 && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md p-3">
+                    <div className="text-sm font-medium text-yellow-900 dark:text-yellow-200">Atenção</div>
+                    <div className="mt-1 text-sm text-yellow-800 dark:text-yellow-300">
+                      {importErrors.slice(0, 8).map((e) => (
+                        <div key={`${e.rowNumber}-${e.message}`}>Linha {e.rowNumber}: {e.message}</div>
+                      ))}
+                      {importErrors.length > 8 && (
+                        <div>+{importErrors.length - 8} outras ocorrências</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeImportModal}
+                disabled={importing}
+                className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

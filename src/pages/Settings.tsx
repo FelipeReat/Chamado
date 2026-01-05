@@ -14,16 +14,11 @@ import {
   Layout,
   Users,
   History,
-  Download,
-  Upload,
   RotateCcw,
   AlertTriangle,
-  CheckCircle,
   Eye,
   EyeOff,
   Save,
-  FileJson,
-  FileText,
   Building
 } from 'lucide-react'
 
@@ -130,12 +125,6 @@ const TABS: TabProps[] = [
     component: HistoryLog
   },
   {
-    id: 'export',
-    label: 'Exportar/Importar',
-    icon: FileJson,
-    component: () => <div>Exportar/Importar Configurações</div>
-  },
-  {
     id: 'departments',
     label: 'Departamentos',
     icon: Building,
@@ -146,12 +135,13 @@ const TABS: TabProps[] = [
 export default function Settings() {
   const { user, isAdmin, isTechnician } = useAuth()
   const [activeTab, setActiveTab] = useState('status')
-  const [settings, setSettings] = useState<any>(null)
+  const [settings, setSettings] = useState<unknown>(null)
   const [loading, setLoading] = useState(true)
   const [showPreview, setShowPreview] = useState(true)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -161,7 +151,7 @@ export default function Settings() {
     try {
       setLoading(true)
       const response = await apiFetch('/settings')
-      setSettings(response as any)
+      setSettings(response)
     } catch (error) {
       console.error('Erro ao buscar configurações:', error)
     } finally {
@@ -174,47 +164,21 @@ export default function Settings() {
     setLastSaved(new Date())
   }
 
-  const handleExport = async () => {
+  const performPurgeTickets = async () => {
     try {
-      const response = await apiFetch('/settings/export')
-      const dataStr = JSON.stringify(response as any, null, 2)
-      const dataBlob = new Blob([dataStr], { type: 'application/json' })
-      const url = URL.createObjectURL(dataBlob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `configuracoes-${new Date().toISOString().split('T')[0]}.json`
-      link.click()
-      URL.revokeObjectURL(url)
+      setSaving(true)
+      await apiFetch('/tickets/purge', {
+        method: 'POST',
+        body: JSON.stringify({ confirm: 'DELETE_ALL_TICKETS' })
+      })
+      alert('Todos os cards foram excluídos com sucesso!')
     } catch (error) {
-      console.error('Erro ao exportar configurações:', error)
-      alert('Erro ao exportar configurações')
+      console.error('Erro ao excluir todos os cards:', error)
+      alert('Erro ao excluir todos os cards')
+    } finally {
+      setSaving(false)
+      setShowPurgeConfirm(false)
     }
-  }
-
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string)
-        
-        if (confirm('Tem certeza que deseja importar estas configurações? Isso substituirá as configurações atuais.')) {
-          const response = await apiFetch('/settings/import', {
-            method: 'POST',
-            body: JSON.stringify({ user, settings: data })
-          })
-          
-          alert('Configurações importadas com sucesso!')
-          handleUpdate()
-        }
-      } catch (error) {
-        console.error('Erro ao importar configurações:', error)
-        alert('Erro ao importar configurações. Verifique o arquivo.')
-      }
-    }
-    reader.readAsText(file)
   }
 
   const handleReset = () => {
@@ -223,7 +187,7 @@ export default function Settings() {
   const performReset = async () => {
     try {
       setSaving(true)
-      const response = await apiFetch('/settings/reset', {
+      await apiFetch('/settings/reset', {
         method: 'POST',
         body: JSON.stringify({ user })
       })
@@ -241,15 +205,12 @@ export default function Settings() {
   const handleSaveAll = async () => {
     try {
       setSaving(true)
-      const response = await apiFetch('/settings', {
+      await apiFetch('/settings', {
         method: 'PUT',
         body: JSON.stringify({ user, settings })
       })
-      
-      if (response.data) {
-        setLastSaved(new Date())
-        alert('Configurações salvas com sucesso!')
-      }
+      setLastSaved(new Date())
+      alert('Configurações salvas com sucesso!')
     } catch (error) {
       console.error('Erro ao salvar configurações:', error)
       alert('Erro ao salvar configurações')
@@ -364,25 +325,6 @@ export default function Settings() {
               </h3>
               <div className="space-y-2">
                 <button
-                  onClick={handleExport}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar
-                </button>
-                
-                <label className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors cursor-pointer">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Importar
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImport}
-                    className="hidden"
-                  />
-                </label>
-                
-                <button
                   onClick={handleReset}
                   disabled={saving}
                   className="w-full flex items-center px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 disabled:opacity-50 rounded-md transition-colors"
@@ -390,6 +332,16 @@ export default function Settings() {
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Resetar
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowPurgeConfirm(true)}
+                    disabled={saving}
+                    className="w-full flex items-center px-3 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 disabled:opacity-50 rounded-md transition-colors"
+                  >
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Excluir todos os cards
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -435,6 +387,24 @@ export default function Settings() {
               <div className="flex justify-end space-x-3">
                 <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Cancelar</button>
                 <button onClick={performReset} disabled={saving} className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Resetar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPurgeConfirm && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Confirmar exclusão total</h3>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Tem certeza que deseja excluir todos os cards do sistema? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button onClick={() => setShowPurgeConfirm(false)} className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Cancelar</button>
+                <button onClick={performPurgeTickets} disabled={saving} className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Excluir todos</button>
               </div>
             </div>
           </div>

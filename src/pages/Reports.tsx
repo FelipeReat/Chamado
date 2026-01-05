@@ -415,7 +415,7 @@ export default function Reports() {
       {/* Tempo por fase por chamado */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Tempo de Atendimento por Fase (por chamado)</h3>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[70vh]">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
             <thead>
               <tr>

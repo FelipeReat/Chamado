@@ -7,7 +7,7 @@ import TicketListView from '../components/TicketListView'
 import TicketKanbanView from '../components/TicketKanbanView'
 import { statusStyleFromSettings } from '../lib/statusColors'
 import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
-import { PlusCircle, Clock, CheckCircle, AlertCircle, TrendingUp, Users, List, Copy, ExternalLink } from 'lucide-react'
+import { PlusCircle, Clock, CheckCircle, AlertCircle, TrendingUp, Users, List } from 'lucide-react'
 
 export default function Dashboard() {
   const { user, isAdmin, isTechnician } = useAuth()
@@ -28,26 +28,7 @@ export default function Dashboard() {
     thisMonth: 0
   })
 
-  const publicFormUrl = `${window.location.origin}/formulario-chamado`
-  const [copied, setCopied] = useState(false)
   const [settings, setSettings] = useState<any>(null)
-  const copyPublicUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(publicFormUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (e) {
-      // Fallback
-      const tmp = document.createElement('input')
-      tmp.value = publicFormUrl
-      document.body.appendChild(tmp)
-      tmp.select()
-      document.execCommand('copy')
-      document.body.removeChild(tmp)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
 
   useEffect(() => {
     fetchTickets()
@@ -305,38 +286,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Public Form Link */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Formulário Público</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">Compartilhe este link para que qualquer pessoa abra um chamado sem precisar de login.</p>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex-1">
-            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 truncate">
-              {publicFormUrl}
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={copyPublicUrl}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none transition-colors"
-              title="Copiar link público"
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              {copied ? 'Copiado!' : 'Copiar link'}
-            </button>
-            <a
-              href={publicFormUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none transition-colors"
-              title="Abrir formulário público"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Abrir
-            </a>
-          </div>
-        </div>
-      </div>
+
 
       {/* View Selector */}
       <div className="mb-6">
@@ -370,7 +320,7 @@ export default function Dashboard() {
       )}
 
       {/* Tickets View */}
-      <div className="transition-all duration-300 ease-in-out h-full min-h-0">
+      <div className={`transition-all duration-300 ease-in-out min-h-0 ${viewMode === 'kanban' ? 'h-[70vh]' : ''}`}>
         {viewMode === 'list' ? (
           <TicketListView
             tickets={tickets}

@@ -105,9 +105,6 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
     return acc
   }, {} as Record<string, Ticket[]>)
 
-  // Limitar a 15 cards por coluna com scroll
-  const limitTickets = (tickets: Ticket[]) => tickets.slice(0, 15)
-
   const handleDragEnd = () => {
     setDraggedTicket(null)
     setDragOverColumn(null)
@@ -324,10 +321,9 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
         setDragOverColumn(null)
       }}
     >
-    <div className="flex gap-6 h-full overflow-x-auto pb-4">
+    <div className="flex gap-6 h-full min-h-0 overflow-x-auto pb-4">
       {columns.map((column) => {
-        const columnTickets = limitTickets(ticketsByColumn[column.id] || [])
-        const hasMore = (ticketsByColumn[column.id] || []).length > 15
+        const columnTickets = ticketsByColumn[column.id] || []
         const isHex = String(column.color || '').startsWith('#')
         const hex = String(column.color || '')
         const hexToRgb = (h: string) => {
@@ -344,7 +340,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
           borderColor: rgba(hex, 0.35)
         } : undefined
         return (
-          <div key={column.id} className={`flex flex-col h-full basis-[320px] min-w-[300px] flex-shrink-0 rounded-lg border-2 ${isHex ? '' : column.color}`} style={columnStyle}>
+          <div key={column.id} className={`flex flex-col h-full min-h-0 basis-[320px] min-w-[300px] flex-shrink-0 rounded-lg border-2 ${isHex ? '' : column.color}`} style={columnStyle}>
             {/* Cabeçalho da Coluna */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-2">
@@ -365,13 +361,6 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
               {columnTickets.map((ticket) => (
                 <DraggableCard key={ticket.id} ticket={ticket} columnTitle={column.title} />
               ))}
-              {hasMore && (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    +{(ticketsByColumn[column.id] || []).length - 15} chamados ocultos
-                  </p>
-                </div>
-              )}
               {columnTickets.length === 0 && (
                 <div className="flex items-center justify-center p-8">
                   <div className="text-center">
