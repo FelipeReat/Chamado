@@ -68,7 +68,7 @@ function statusBadge(status: string) {
 }
 
 export default function TechnicianDashboard() {
-  const { user, isTechnician, isAdmin } = useAuth()
+  const { user, isTechnician, isAdmin, isViewer } = useAuth()
   const [loading, setLoading] = useState(true)
   const [tickets, setTickets] = useState<ListTicket[]>([])
   const [technicians, setTechnicians] = useState<ListUser[]>([])
@@ -204,7 +204,7 @@ export default function TechnicianDashboard() {
     return new Map(technicians.map((t) => [t.id, t.name || t.email || 'Técnico']))
   }, [technicians])
 
-  const canSee = Boolean(user && (isTechnician || isAdmin))
+  const canSee = Boolean(user && (isTechnician || isAdmin || isViewer))
 
   if (!canSee) {
     return null

@@ -7,7 +7,7 @@ export interface StoredUser {
   id: string
   email: string
   name: string
-  role: 'user' | 'technician' | 'admin'
+  role: 'user' | 'technician' | 'admin' | 'viewer'
   passwordHash: string
   created_at: string
   preferences?: {

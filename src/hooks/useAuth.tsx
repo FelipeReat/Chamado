@@ -4,16 +4,17 @@ export interface User {
   id: string
   email: string
   name: string
-  role: 'user' | 'technician' | 'admin'
+  role: 'user' | 'technician' | 'admin' | 'viewer'
 }
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<User>
   signOut: () => Promise<void>
   isAdmin: boolean
   isTechnician: boolean
+  isViewer: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json()
     localStorage.setItem('auth_token', data.token)
     setUser(data.user)
+    return data.user
   }
 
   const signOut = async () => {
@@ -64,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.role === 'admin'
   const isTechnician = user?.role === 'technician' || isAdmin
+  const isViewer = user?.role === 'viewer'
 
   const value = {
     user,
@@ -72,10 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     isAdmin,
     isTechnician,
+    isViewer,
   }
 
   useEffect(() => {
-    if (!user) {
+    if (!user || user.role === 'viewer') {
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current)
         inactivityTimerRef.current = undefined

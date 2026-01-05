@@ -27,8 +27,8 @@ function ProtectedRoute() {
 }
 
 function DashboardRoute() {
-  const { isTechnician, isAdmin } = useAuth()
-  if (isTechnician && !isAdmin) return <TechnicianDashboard />
+  const { isTechnician, isAdmin, isViewer } = useAuth()
+  if ((isTechnician && !isAdmin) || isViewer) return <TechnicianDashboard />
   return <Dashboard />
 }
 

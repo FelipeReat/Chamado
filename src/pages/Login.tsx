@@ -17,8 +17,12 @@ export default function Login() {
     setLoading(true)
 
     try {
-      await signIn(email, password)
-      navigate('/dashboard')
+      const user = await signIn(email, password)
+      if (user.role === 'viewer') {
+        navigate('/dashboard-tecnico')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       setError('Email ou senha inválidos')
     } finally {

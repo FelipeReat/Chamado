@@ -66,5 +66,17 @@
     "role": "technician",
     "passwordHash": "$2a$10$EtfULkJRxOdlMFZgOFK6KOHhIQ4Xh1Bzhfwm21A6Ai5k0TZZJ4zZa",
     "created_at": "2025-11-12T22:16:50.778Z"
+  },
+  {
+    "id": "ada27bd9-68ee-40bb-8958-5a4e21c966a9",
+    "email": "visualizador@empresa.com",
+    "name": "Visualizador",
+    "role": "viewer",
+    "passwordHash": "$2a$10$cYsrCpT3p.lbo5LdypHV9.75pLWryCZfjCvx4Hqob.M7odmtFs0SG",
+    "created_at": "2026-01-05T12:54:08.288Z",
+    "preferences": {
+      "viewMode": "kanban",
+      "themeMode": "system"
+    }
   }
 ]
