@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { sendTicketCreatedNotification } from '../utils/notifications'
 import { Send, User, Tag, Info } from 'lucide-react'
 import type { User as AppUser } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
 type ValueType = string | number | boolean | string[]
 interface FieldValidation { minLength?: number; maxLength?: number; min?: number; max?: number; pattern?: string; customMessage?: string }
@@ -15,6 +16,7 @@ interface Settings { formFields?: FormField[]; formOrder?: string[] }
 
 export default function NewTicket() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [technicians, setTechnicians] = useState<AppUser[]>([])
   const [fieldConfigs, setFieldConfigs] = useState<Record<string, Partial<FormField>>>({})
@@ -60,24 +62,29 @@ export default function NewTicket() {
         const byName: Record<string, Partial<FormField>> = {}
         fields.forEach((f: FormField) => { byName[f.name] = f })
         setFieldConfigs(byName)
-        const customs = fields.filter((f: FormField) => (f.isActive ?? true) && (f.visibleInternal ?? true) && !['name','email','title','description','category','priority','assigned_to_id','requester_id'].includes(f.name))
+        const customs = fields.filter((f: FormField) => (f.isActive ?? true) && (f.visiblePublic ?? true) && !['title','description','category','priority','assigned_to_id','requester_id'].includes(f.name))
         setCustomFields(customs)
         setCustomValues(prev => {
           const next = { ...prev }
           customs.forEach((f: FormField) => {
             if (f.defaultValue !== undefined && next[f.name] === undefined) next[f.name] = f.defaultValue as ValueType
           })
+          if (user) {
+            if (next['name'] === undefined) next['name'] = (user.name || '') as ValueType
+            if (next['email'] === undefined) next['email'] = (user.email || '') as ValueType
+          }
           return next
         })
         const formOrder: string[] = Array.isArray((s as any)?.formOrder) ? ((s as any).formOrder as string[]).map(String) : []
         const defaultCategories = ['Hardware','Software','Rede','Email','Sistema','Outro']
         const defaultPriorities = ['Low','Medium','High','Urgent']
         const builtins: FormField[] = [
+          { id: 'builtin:name', name: 'name', label: byName['name']?.label || 'Seu nome', type: 'text', required: Boolean(byName['name']?.required ?? true), order: 0, isActive: (byName['name']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true, readonlyInternal: false },
+          { id: 'builtin:email', name: 'email', label: byName['email']?.label || 'Seu email', type: 'email', required: Boolean(byName['email']?.required ?? true), order: 0, isActive: (byName['email']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true, readonlyInternal: false },
           { id: 'builtin:title', name: 'title', label: byName['title']?.label || 'Título do Chamado', type: 'text', required: Boolean(byName['title']?.required ?? true), order: 1, isActive: (byName['title']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
           { id: 'builtin:description', name: 'description', label: byName['description']?.label || 'Descrição Detalhada', type: 'textarea', required: Boolean(byName['description']?.required ?? true), order: 2, isActive: (byName['description']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
           { id: 'builtin:category', name: 'category', label: byName['category']?.label || 'Categoria', type: 'select', required: Boolean(byName['category']?.required ?? true), options: (Array.isArray(byName['category']?.options) && byName['category']?.options?.length ? (byName['category']!.options as string[]) : defaultCategories), order: 3, isActive: (byName['category']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
           { id: 'builtin:priority', name: 'priority', label: byName['priority']?.label || 'Prioridade', type: 'select', required: Boolean(byName['priority']?.required ?? true), options: (Array.isArray(byName['priority']?.options) && byName['priority']?.options?.length ? (byName['priority']!.options as string[]) : defaultPriorities), order: 4, isActive: (byName['priority']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
-          { id: 'builtin:assigned_to_id', name: 'assigned_to_id', label: byName['assigned_to_id']?.label || 'Atribuir a', type: 'select', required: Boolean(byName['assigned_to_id']?.required ?? false), order: 5, isActive: (byName['assigned_to_id']?.isActive ?? true) as boolean, visiblePublic: false, visibleInternal: true }
         ]
         const merged: FormField[] = builtins.map(b => {
           const found = fields.find(f => f.name === b.name)
@@ -100,7 +107,7 @@ export default function NewTicket() {
           }
           return f
         })
-        setOrderedFields(withDynamic.filter(f => (f.isActive ?? true) && (f.visibleInternal ?? true)))
+        setOrderedFields(withDynamic.filter(f => (f.isActive ?? true) && (f.visiblePublic ?? true)))
       } catch (err) { void err }
     })()
   }, [])
@@ -179,7 +186,6 @@ export default function NewTicket() {
           category: formData.category,
           priority: formData.priority,
           status: 'Open',
-          assigned_to_id: formData.assigned_to_id || null,
           board_id: currentBoardId,
           custom_fields: { ...customValues, attachments }
         })
@@ -229,7 +235,7 @@ export default function NewTicket() {
           {orderedFields.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {orderedFields.map((field) => {
-                const fullSpan = ['title','description','assigned_to_id'].includes(field.name) || field.type === 'textarea'
+                const fullSpan = ['title','description'].includes(field.name) || field.type === 'textarea'
                 return (
                   <div key={field.id} className={fullSpan ? 'md:col-span-2' : ''}>
                     {field.name === 'title' && (
@@ -300,21 +306,7 @@ export default function NewTicket() {
                         </div>
                       </>
                     )}
-                    {field.name === 'assigned_to_id' && (
-                      <>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{field.label}</label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                          </div>
-                          <select name="assigned_to_id" value={formData.assigned_to_id} onChange={handleChange} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors">
-                            <option value="">Selecionar técnico...</option>
-                            {technicians.map((technician) => (<option key={technician.id} value={technician.id}>{technician.name || technician.email}</option>))}
-                          </select>
-                        </div>
-                      </>
-                    )}
-                    {!['title','description','category','priority','assigned_to_id'].includes(field.name) && (
+                    {!['title','description','category','priority'].includes(field.name) && (
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}{field.required && <span className="text-red-500 ml-1">*</span>}</label>
                         {field.type === 'text' && (
@@ -543,28 +535,7 @@ export default function NewTicket() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="relative">
-                <label htmlFor="assigned_to_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{fieldConfigs['assigned_to_id']?.label || 'Atribuir a'}</label>
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                </div>
-                <select
-                  id="assigned_to_id"
-                  name="assigned_to_id"
-                  value={formData.assigned_to_id}
-                  onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 transition-colors"
-                >
-                  <option value="">Selecionar técnico...</option>
-                  {technicians.map((technician) => (
-                    <option key={technician.id} value={technician.id}>
-                      {technician.name || technician.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          
           
           </div>
           )}

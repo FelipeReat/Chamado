@@ -630,110 +630,91 @@ router.post('/settings/reset', requireAuth, requireAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Erro ao carregar configurações' })
     }
     
-    // Criar configurações padrão
+    // Configurações padrão mínimas
+    const defaultStatuses = [
+      {
+        id: 'open',
+        name: 'Aberto',
+        color: '#fbbf24',
+        icon: 'Circle',
+        order: 1,
+        isDefault: true,
+        isActive: true
+      },
+      {
+        id: 'in-progress',
+        name: 'Em Andamento',
+        color: '#3b82f6',
+        icon: 'Clock',
+        order: 2,
+        isDefault: true,
+        isActive: true
+      },
+      {
+        id: 'resolved',
+        name: 'Resolvido',
+        color: '#10b981',
+        icon: 'CheckCircle',
+        order: 3,
+        isDefault: true,
+        isActive: true
+      }
+    ]
+    const defaultKanbanColumns = [
+      {
+        id: 'open',
+        statusId: 'open',
+        title: 'Aberto',
+        wipLimit: 10,
+        showPriority: true,
+        showAssignee: true,
+        showDueDate: true,
+        isActive: true,
+        order: 1
+      },
+      {
+        id: 'in-progress',
+        statusId: 'in-progress',
+        title: 'Em Andamento',
+        wipLimit: 5,
+        showPriority: true,
+        showAssignee: true,
+        showDueDate: true,
+        isActive: true,
+        order: 2
+      },
+      {
+        id: 'resolved',
+        statusId: 'resolved',
+        title: 'Resolvido',
+        wipLimit: null,
+        showPriority: false,
+        showAssignee: false,
+        showDueDate: false,
+        isActive: true,
+        order: 3
+      }
+    ]
+    
+    // Preservar TODOS os Kanbans existentes e apenas garantir que os padrões mínimos existam
+    const existingColumns = Array.isArray(settings.kanbanColumns) ? settings.kanbanColumns : []
+    const hasColumn = (list: any[], id: string) => list.some(c => String(c.id) === id || String(c.statusId) === id)
+    const mergedColumns = [...existingColumns]
+    for (const def of defaultKanbanColumns) {
+      if (!hasColumn(mergedColumns, String(def.id))) {
+        mergedColumns.push(def)
+      }
+    }
+    // Recalcular order sequencial
+    const finalColumns = mergedColumns.map((c: any, idx: number) => ({ ...c, order: idx + 1 }))
+    
     const defaultSettings = {
-      statuses: [
-        {
-          id: 'open',
-          name: 'Aberto',
-          color: '#fbbf24',
-          icon: 'Circle',
-          order: 1,
-          isDefault: true,
-          isActive: true
-        },
-        {
-          id: 'in-progress',
-          name: 'Em Andamento',
-          color: '#3b82f6',
-          icon: 'Clock',
-          order: 2,
-          isDefault: true,
-          isActive: true
-        },
-        {
-          id: 'resolved',
-          name: 'Resolvido',
-          color: '#10b981',
-          icon: 'CheckCircle',
-          order: 3,
-          isDefault: true,
-          isActive: true
-        }
-      ],
-      formFields: [
-        {
-          id: 'title',
-          name: 'Título',
-          type: 'text',
-          required: true,
-          order: 1,
-          isDefault: true,
-          validation: { minLength: 5, maxLength: 200 }
-        },
-        {
-          id: 'description',
-          name: 'Descrição',
-          type: 'textarea',
-          required: true,
-          order: 2,
-          isDefault: true,
-          validation: { minLength: 10, maxLength: 2000 }
-        },
-        {
-          id: 'category',
-          name: 'Categoria',
-          type: 'select',
-          required: true,
-          order: 3,
-          isDefault: true,
-          options: ['Bug', 'Feature', 'Suporte', 'Outro']
-        },
-        {
-          id: 'priority',
-          name: 'Prioridade',
-          type: 'select',
-          required: true,
-          order: 4,
-          isDefault: true,
-          options: ['Baixa', 'Média', 'Alta', 'Crítica']
-        }
-      ],
-      kanbanColumns: [
-        {
-          id: 'open',
-          statusId: 'open',
-          title: 'Aberto',
-          wipLimit: 10,
-          showPriority: true,
-          showAssignee: true,
-          showDueDate: true,
-          isActive: true,
-          order: 1
-        },
-        {
-          id: 'in-progress',
-          statusId: 'in-progress',
-          title: 'Em Andamento',
-          wipLimit: 5,
-          showPriority: true,
-          showAssignee: true,
-          showDueDate: true,
-          isActive: true,
-          order: 2
-        },
-        {
-          id: 'resolved',
-          statusId: 'resolved',
-          title: 'Resolvido',
-          wipLimit: null,
-          showPriority: false,
-          showAssignee: false,
-          showDueDate: false,
-          isActive: true,
-          order: 3
-        }
-      ],
+      // Status continuam padrão
+      statuses: defaultStatuses,
+      // Campos do formulário permanecem como estão
+      formFields: Array.isArray(settings.formFields) ? settings.formFields : [],
+      // Kanban: preserva tudo que já existe e garante os mínimos
+      kanbanColumns: finalColumns,
       permissions: settings.permissions || {},
       history: settings.history || [],
       createdAt: settings.createdAt,
