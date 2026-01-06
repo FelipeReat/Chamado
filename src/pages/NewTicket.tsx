@@ -116,7 +116,7 @@ export default function NewTicket() {
     try {
       const resp = await apiFetch('/users')
       const dataAll = (resp.data || []) as AppUser[]
-      setUserNames(dataAll.map(u => u.name || u.email || '').filter(Boolean))
+      setUserNames(dataAll.filter(u => u.role !== 'admin').map(u => u.name || u.email || '').filter(Boolean))
       setTechnicians(dataAll.filter((u) => u.role === 'technician'))
     } catch (error) {
       console.error('Error fetching technicians:', error)

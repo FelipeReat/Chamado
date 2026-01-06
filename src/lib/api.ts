@@ -1,4 +1,3 @@
-// Simple API client that attaches auth token
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('auth_token')
   const headers: Record<string, string> = {
@@ -7,11 +6,21 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || ''
-  const res = await fetch(`${API_BASE}/api${path.startsWith('/') ? '' : '/'}${path}`, {
-    ...options,
-    headers,
-  })
+  const isDev = !!((import.meta as any).env?.DEV)
+  const envBase = (import.meta as any).env?.VITE_API_BASE_URL || ''
+  const API_BASE = isDev ? '' : envBase
+
+  const url = `${API_BASE}/api${path.startsWith('/') ? '' : '/'}${path}`
+  let res: Response
+  try {
+    res = await fetch(url, { ...options, headers })
+  } catch (err) {
+    if (isDev) {
+      res = await fetch(`http://localhost:3000/api${path.startsWith('/') ? '' : '/'}${path}`, { ...options, headers })
+    } else {
+      throw err
+    }
+  }
   if (!res.ok) {
     const ct = res.headers.get('content-type') || ''
     try {

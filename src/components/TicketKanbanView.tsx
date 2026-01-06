@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { DndContext, useSensor, useSensors, MouseSensor, TouchSensor, PointerSensor, DragOverlay, rectIntersection, useDroppable, useDraggable } from '@dnd-kit/core'
+import { useState, useEffect, useMemo, memo } from 'react'
+import { DndContext, useSensor, useSensors, MouseSensor, TouchSensor, PointerSensor, DragOverlay, pointerWithin, useDroppable, useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
 import { type Ticket } from '../lib/supabase'
@@ -25,16 +25,9 @@ interface Column {
 }
 
 export default function TicketKanbanView({ tickets, getPriorityColor, getStatusColor, getStatusStyle, onStatusChange }: TicketKanbanViewProps) {
-  const [draggedTicket, setDraggedTicket] = useState<string | null>(null)
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
   const [columns, setColumns] = useState<Column[]>([])
   const sensors = useSensors(
-    // PointerSensor cobre mouse/touch onde suportado
-    useSensor(PointerSensor, { activationConstraint: { distance: 1 } }),
-    // MouseSensor para ambientes sem PointerEvents
-    useSensor(MouseSensor, { activationConstraint: { distance: 1 } }),
-    // TouchSensor para dispositivos móveis
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 2 } }),
   )
 
   useEffect(() => {
@@ -98,17 +91,15 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
     }
   }, [])
 
-  // Organizar tickets por coluna baseado em statusIds configurados
-  const ticketsByColumn = (Array.isArray(columns) ? columns : []).reduce((acc, column) => {
-    const list = tickets.filter(t => column.statusIds.includes(normalizeStatusKey(t.status)))
-    acc[column.id] = list
-    return acc
-  }, {} as Record<string, Ticket[]>)
+  const ticketsByColumn = useMemo(() => {
+    return (Array.isArray(columns) ? columns : []).reduce((acc, column) => {
+      const list = tickets.filter(t => column.statusIds.includes(normalizeStatusKey(t.status)))
+      acc[column.id] = list
+      return acc
+    }, {} as Record<string, Ticket[]>)
+  }, [tickets, columns])
 
-  const handleDragEnd = () => {
-    setDraggedTicket(null)
-    setDragOverColumn(null)
-  }
+  const handleDragEnd = () => {}
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -143,10 +134,8 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
       <div
         id={column.id}
         ref={setNodeRef}
-        style={{ touchAction: 'none', position: 'relative' }}
-        className={`droppable-area flex-1 min-h-0 p-4 space-y-3 overflow-y-auto rounded-lg ${
-          (isOver || dragOverColumn === column.id) ? 'border-2 border-dashed border-blue-400 dark:border-blue-500' : ''
-        }`}
+        style={{ touchAction: 'none', position: 'relative', contain: 'layout paint' }}
+        className={`droppable-area flex-1 min-h-0 p-4 space-y-3 overflow-y-auto rounded-lg ${isOver ? 'border-2 border-dashed border-blue-400 dark:border-blue-500' : ''}`}
         role="list"
         aria-label={`Lista de chamados ${column.title}`}
         data-droppable
@@ -157,12 +146,16 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
   }
 
   // Componente Draggable para card
-  const DraggableCard = ({ ticket, columnTitle }: { ticket: Ticket, columnTitle: string }) => {
+  const DraggableCardBase = ({ ticket, columnTitle }: { ticket: Ticket, columnTitle: string }) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: ticket.id })
     const style = {
-      transform: transform ? CSS.Transform.toString(transform) : undefined,
+      transform: transform ? `${CSS.Transform.toString(transform)} translateZ(0)` : undefined,
       userSelect: 'none',
-      touchAction: 'none'
+      touchAction: 'none',
+      willChange: transform ? 'transform' : undefined,
+      pointerEvents: isDragging ? 'none' : undefined,
+      contentVisibility: 'auto',
+      contain: 'layout paint style'
     } as React.CSSProperties
 
     const moveToCurrentBoard = async () => {
@@ -188,9 +181,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
         {...listeners}
         {...attributes}
         style={style}
-        className={`draggable-item bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-200 ${
-          (isDragging || draggedTicket === ticket.id) ? 'opacity-50 rotate-2 scale-105 cursor-grabbing' : 'cursor-grab'
-        }`}
+        className={`draggable-item bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md ${isDragging ? 'transition-none opacity-70 cursor-grabbing' : 'transition-all duration-200 cursor-grab'}`}
         role="listitem"
         aria-label={`Chamado ${ticket.title} - Status ${columnTitle}`}
         tabIndex={0}
@@ -201,13 +192,11 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             to={`/chamados/${ticket.id}`}
             draggable={false}
             onClick={(e) => {
-              // Evita navegação durante um arraste ativo
-              if (draggedTicket) {
+              if (isDragging) {
                 e.preventDefault()
               }
             }}
             onMouseDown={(e) => {
-              // Evita seleção/captura do link impedir início do drag
               e.preventDefault()
             }}
             className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors line-clamp-2 flex-1"
@@ -284,32 +273,24 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
       </div>
     )
   }
+  const DraggableCard = memo(DraggableCardBase)
 
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={rectIntersection}
-      onDragStart={(evt) => {
-        const id = String((evt?.active?.id ?? '') || '')
-        try { console.log('[Kanban] dragStart', { id }) } catch {}
-        if (id) setDraggedTicket(id)
-      }}
+      collisionDetection={pointerWithin}
+      onDragStart={(evt) => {}}
       onDragOver={(evt) => {
-        const overId = String((evt?.over?.id ?? '') || '')
-        try { console.log('[Kanban] dragOver', { overId }) } catch {}
-        if (overId) setDragOverColumn(overId)
+        /* no-op to evitar re-renderizações durante o arraste */
       }}
       onDragEnd={(evt) => {
         const id = String((evt?.active?.id ?? '') || '')
         const overId = String((evt?.over?.id ?? '') || '')
-        const targetId = overId || dragOverColumn || ''
-        const col = columns.find(c => c.id === targetId)
-        try { console.log('[Kanban] dragEnd', { id, overId, fallback: dragOverColumn, target: col?.id }) } catch {}
+        const col = columns.find(c => c.id === overId)
         if (id && col) {
           (async () => {
             try {
               const resp = await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify({ status: col.targetStatus }) })
-              try { console.log('[Kanban] Status persistido via DnD', { id, status: col.targetStatus, success: (resp as any)?.success }) } catch {}
             } catch (e) {
               console.warn('[Kanban] Falha ao persistir status via DnD, UI seguirá com callback:', e)
             } finally {
@@ -317,8 +298,6 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             }
           })()
         }
-        setDraggedTicket(null)
-        setDragOverColumn(null)
       }}
     >
     <div className="flex gap-6 h-full min-h-0 overflow-x-auto pb-4">
@@ -378,13 +357,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
         )
       })}
     </div>
-    <DragOverlay>
-      {draggedTicket ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-blue-300 dark:border-blue-600 p-3 shadow-xl">
-          <div className="text-sm font-medium">Movendo chamado...</div>
-        </div>
-      ) : null}
-    </DragOverlay>
+    <DragOverlay />
     </DndContext>
   )
 }

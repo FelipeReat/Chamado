@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { apiFetch } from '../lib/api'
 
 export interface User {
   id: string
@@ -31,31 +32,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
       return
     }
-    fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Sessão inválida')
-        const data = await res.json()
-        setUser(data.user)
-      })
-      .catch(() => {
+    ;(async () => {
+      try {
+        const data = await apiFetch('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+        setUser((data as any).user)
+      } catch {
         localStorage.removeItem('auth_token')
-      })
-      .finally(() => setLoading(false))
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
+    const emailNorm = String(email || '').trim().toLowerCase()
+    const passwordNorm = String(password || '').trim()
+    const data = await apiFetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: emailNorm, password: passwordNorm }),
     })
-    if (!res.ok) throw new Error('Login falhou')
-    const data = await res.json()
-    localStorage.setItem('auth_token', data.token)
-    setUser(data.user)
-    return data.user
+    const token = (data as any).token
+    const user = (data as any).user
+    localStorage.setItem('auth_token', token)
+    setUser(user)
+    return user as User
   }
 
   const signOut = async () => {
