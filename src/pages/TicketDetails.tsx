@@ -18,7 +18,8 @@ import {
   CheckCircle,
   RefreshCw,
   Mail,
-  Download
+  Download,
+  Trash
 } from 'lucide-react'
 
 export default function TicketDetails() {
@@ -190,6 +191,19 @@ export default function TicketDetails() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm('Tem certeza que deseja excluir este chamado? Esta ação não pode ser desfeita.')) return
+    
+    try {
+      await apiFetch(`/tickets/${id}`, { method: 'DELETE' })
+      toast.success('Chamado excluído com sucesso')
+      navigate('/chamados')
+    } catch (error) {
+      console.error('Error deleting ticket:', error)
+      toast.error('Erro ao excluir chamado')
+    }
+  }
+
   const sendCommentNotification = async (comment: any) => {
     try {
       // Notify ticket requester if comment is from someone else
@@ -318,6 +332,96 @@ export default function TicketDetails() {
   const canTechnicianEdit = user?.role === 'technician'
   const allowEdit = canEdit || canTechnicianEdit
 
+  const generateChecklistPdf = () => {
+    const raw = ((ticket || {}) as Record<string, unknown>).custom_fields as unknown as Record<string, unknown> || {}
+    const toStringArray = (v: unknown): string[] => {
+      if (Array.isArray(v)) return v.map(x => String(x)).filter(Boolean)
+      if (typeof v === 'string') return [v].filter(Boolean)
+      return []
+    }
+    let groups: Array<{ name: string; observations: string[] }> = []
+    const arr = Array.isArray((raw as Record<string, unknown>).checklistGroups)
+      ? (raw.checklistGroups as unknown as Array<Record<string, unknown>>)
+      : null
+    if (arr) {
+      groups = arr.map((g) => ({
+        name: String(g.name || g.group || 'Grupo'),
+        observations: toStringArray(g.observations)
+      }))
+    } else {
+      const map = new Map<string, string[]>()
+      const obsGlobal = raw.observacoes
+      if (typeof obsGlobal === 'object' && obsGlobal && !Array.isArray(obsGlobal)) {
+        Object.entries(obsGlobal as Record<string, unknown>).forEach(([k, v]) => {
+          const name = String(k || '').trim()
+          const list = toStringArray(v)
+          if (name && list.length) map.set(name, list)
+        })
+      }
+      Object.keys(raw).forEach((key) => {
+        const m = key.match(/^grupo[:_]?(.+)$/i)
+        if (m) {
+          const name = m[1].trim()
+          const candidates: unknown[] = [
+            (raw as Record<string, unknown>)[`observacoes:${name}`],
+            (raw as Record<string, unknown>)[`observacoes_${name}`],
+          ].filter(Boolean)
+          const list = candidates.flatMap(toStringArray)
+          if (name) map.set(name, list)
+        }
+      })
+      if (map.size === 0) {
+        const base = toStringArray(raw.observacoes)
+        const fallback = base.length ? base : [String(ticket?.description || '')].filter(Boolean)
+        groups = [{ name: 'Geral', observations: fallback }]
+      } else {
+        groups = Array.from(map.entries()).map(([name, observations]) => ({ name, observations }))
+      }
+    }
+
+    const title = String(ticket?.title || 'Checklist')
+    const created = new Date(ticket.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const requester = (ticket as any)?.custom_fields?.name || ticket.requester?.name || ticket.requester?.email || ''
+    const category = ticket.category
+    const html = `<!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Checklist - ${title}</title>
+      <style>
+        body { font-family: Arial, sans-serif; color: #111827; margin: 24px; }
+        h1 { font-size: 20px; margin: 0 0 4px 0; }
+        .meta { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+        .group { margin-top: 16px; page-break-inside: avoid; }
+        .group h2 { font-size: 14px; margin: 0 0 6px 0; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb; }
+        ul { margin: 0; padding-left: 18px; }
+        li { font-size: 12px; margin-bottom: 6px; }
+        .footer { margin-top: 24px; font-size: 11px; color: #6b7280; }
+        @page { margin: 20mm; }
+      </style>
+    </head>
+    <body>
+      <h1>${title}</h1>
+      <div class="meta">Criado em ${created} • Categoria: ${category} • Solicitante: ${requester}</div>
+      ${groups.map(g => `
+        <div class="group">
+          <h2>${g.name}</h2>
+          ${g.observations.length ? `<ul>${g.observations.map(o => `<li>${String(o)}</li>`).join('')}</ul>` : `<div style="font-size:12px;color:#6b7280">Sem observações</div>`}
+        </div>
+      `).join('')}
+      <div class="footer">Gerado pelo sistema de chamados</div>
+      <script>window.addEventListener('load', () => { window.print(); setTimeout(() => window.close(), 300); });</script>
+    </body>
+    </html>`
+    const w = window.open('', '_blank', 'noopener,noreferrer')
+    if (w) {
+      w.document.open()
+      w.document.write(html)
+      w.document.close()
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
@@ -351,6 +455,24 @@ export default function TicketDetails() {
                 {editMode ? 'Sair Edição' : 'Editar'}
               </button>
             )}
+            {canEdit && (
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+              >
+                <Trash className="w-4 h-4 mr-1" />
+                Excluir
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={generateChecklistPdf}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Checklist PDF
+              </button>
+            </div>
           </div>
 
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 transition-colors">

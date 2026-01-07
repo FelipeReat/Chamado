@@ -1,10 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
-import { getTickets as fsGetTickets, createTicket as fsCreateTicket, updateTicket as fsUpdateTicket, getComments as fsGetComments, addComment as fsAddComment, findTicket as fsFindTicket, getAudit as fsGetAudit, purgeAllTickets as fsPurgeAllTickets } from '../storage/tickets.js'
+import { getTickets as fsGetTickets, createTicket as fsCreateTicket, updateTicket as fsUpdateTicket, getComments as fsGetComments, addComment as fsAddComment, findTicket as fsFindTicket, getAudit as fsGetAudit, purgeAllTickets as fsPurgeAllTickets, deleteTicket as fsDeleteTicket } from '../storage/tickets.js'
 import type { TicketAuditRecord, TicketCommentRecord, TicketRecord } from '../storage/tickets.js'
 import { getPool } from '../db/pool.js'
-import { dbGetTickets, dbCreateTicket, dbUpdateTicket, dbGetComments, dbAddComment, dbFindTicket, dbPurgeAllTickets } from '../db/ticketsRepo.js'
+import { dbGetTickets, dbCreateTicket, dbUpdateTicket, dbGetComments, dbAddComment, dbFindTicket, dbPurgeAllTickets, dbDeleteTicket } from '../db/ticketsRepo.js'
 import { getOrCreateDefaultBoardId, getBoards } from '../storage/boards.js'
-import { findUserById } from '../storage/users.js'
+import { findUserById, getUsers } from '../storage/users.js'
 import jwt from 'jsonwebtoken'
 
 const router = Router()
@@ -88,7 +88,21 @@ router.get('/', requireAuth, async (req, res) => {
     if (boardId) list = list.filter(t => t.board_id === boardId)
   }
   try { console.info('[API] GET /tickets', { board_id: boardId, total: list.length, storage: pool ? 'db' : 'fs' }) } catch { void 0 }
-  res.json({ success: true, data: list })
+  
+  const users = getUsers()
+  const userMap = new Map(users.map(u => [u.id, u]))
+
+  const enrichedList = list.map(t => {
+    const requester = userMap.get(t.requester_id)
+    const assigned_to = t.assigned_to_id ? userMap.get(t.assigned_to_id) : null
+    return {
+      ...t,
+      requester: requester ? { id: requester.id, name: requester.name, email: requester.email } : undefined,
+      assigned_to: assigned_to ? { id: assigned_to.id, name: assigned_to.name, email: assigned_to.email } : undefined
+    }
+  })
+
+  res.json({ success: true, data: enrichedList })
 })
 
 router.post('/', requireAuth, async (req, res) => {
@@ -263,6 +277,47 @@ router.get('/audit', requireAuth, async (req, res) => {
     console.error('Erro ao obter auditoria de tickets:', error)
     res.status(500).json({ success: false, error: 'Falha ao obter auditoria' })
   }
+})
+
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params
+  const actor = (req as AuthedRequest).user
+  if (!actor) return res.status(401).json({ success: false, error: 'Não autenticado' })
+  
+  const pool = getPool()
+  let ticket: TicketRecord | undefined
+  if (pool) {
+    try {
+      ticket = (await dbFindTicket(id)) as TicketRecord
+    } catch {
+      ticket = fsFindTicket(id)
+    }
+  } else {
+    ticket = fsFindTicket(id)
+  }
+
+  if (!ticket) return res.status(404).json({ success: false, error: 'Chamado não encontrado' })
+
+  // Permissões: apenas admin ou quem criou o chamado
+  if (actor.role !== 'admin' && ticket.requester_id !== actor.sub) {
+    return res.status(403).json({ success: false, error: 'Você não tem permissão para excluir este chamado' })
+  }
+
+  let deleted = false
+  if (pool) {
+    try {
+      deleted = await dbDeleteTicket(id)
+    } catch {
+      deleted = fsDeleteTicket(id)
+    }
+  } else {
+    deleted = fsDeleteTicket(id)
+  }
+
+  if (!deleted) return res.status(500).json({ success: false, error: 'Falha ao excluir chamado' })
+  
+  try { console.info('[API] DELETE /tickets/:id', { id, by: actor.email }) } catch { void 0 }
+  res.json({ success: true, data: { id } })
 })
 
 export default router

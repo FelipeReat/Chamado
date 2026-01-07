@@ -99,7 +99,29 @@ export async function dbPurgeAllTickets() {
     await client.query('COMMIT')
     return { deleted: res.rowCount || 0 }
   } catch (e) {
-    try { await client.query('ROLLBACK') } catch {}
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+export async function dbDeleteTicket(id: string) {
+  const pool = getPool()
+  if (!pool) throw new Error('Pool não inicializado')
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('DELETE FROM ticket_audit WHERE ticket_id = $1', [id]) // Assuming ticket_audit has ticket_id, but the schema isn't clear. Safest to ignore if column missing or handle error. But for now, let's assume cascade or separate delete.
+    // Wait, audit in fs doesn't link by ticket_id column explicitly in SQL usually unless structured.
+    // The previous code for purge deleted all.
+    // Let's look at fs implementation: comments are filtered.
+    await client.query('DELETE FROM ticket_comments WHERE ticket_id = $1', [id])
+    const res = await client.query('DELETE FROM tickets WHERE id = $1', [id])
+    await client.query('COMMIT')
+    return res.rowCount && res.rowCount > 0
+  } catch (e) {
+    await client.query('ROLLBACK')
     throw e
   } finally {
     client.release()

@@ -233,3 +233,18 @@ export function purgeAllTickets() {
   fs.writeFileSync(auditFile, JSON.stringify([], null, 2), 'utf-8')
   return { deleted }
 }
+
+export function deleteTicket(id: string): boolean {
+  const tickets = getTickets()
+  const idx = tickets.findIndex(t => t.id === id)
+  if (idx === -1) return false
+
+  tickets.splice(idx, 1)
+  saveTickets(tickets)
+
+  // Remove related comments
+  const comments = getComments().filter(c => c.ticket_id !== id)
+  saveComments(comments)
+  
+  return true
+}

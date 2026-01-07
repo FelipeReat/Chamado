@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, memo } from 'react'
-import { DndContext, useSensor, useSensors, MouseSensor, TouchSensor, PointerSensor, DragOverlay, pointerWithin, useDroppable, useDraggable } from '@dnd-kit/core'
+import { DndContext, useSensor, useSensors, PointerSensor, DragOverlay, pointerWithin, useDroppable, useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
 import { type Ticket } from '../lib/supabase'
 import { apiFetch } from '../lib/api'
 import { deriveColumnsFromSettings, normalizeStatusKey, statusIdToLabel } from '../lib/kanbanMapping'
-import { Calendar, User, AlertCircle, Clock, CheckCircle, ArrowUp, ArrowDown } from 'lucide-react'
+import { AlertCircle, Clock, CheckCircle } from 'lucide-react'
 
 interface TicketKanbanViewProps {
   tickets: Ticket[]
@@ -43,12 +43,17 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
           return
         }
         const settings = await apiFetch('/settings')
-        const derived = deriveColumnsFromSettings(settings as any)
+        const derived = deriveColumnsFromSettings(settings as Record<string, unknown>)
         let currentBoardId: string | null = null
-        try { currentBoardId = localStorage.getItem('current_board_id') || null } catch {}
-        const filtered = Array.isArray(derived) ? derived.filter((c: any) => !c.boardId || (currentBoardId && c.boardId === currentBoardId)) : []
+        try { currentBoardId = localStorage.getItem('current_board_id') || null } catch { void 0 }
+        const filtered = Array.isArray(derived)
+          ? derived.filter((c) => {
+              const boardId = (c as { boardId?: string | null }).boardId
+              return !boardId || (currentBoardId && boardId === currentBoardId)
+            })
+          : []
         setColumns(filtered.length > 0 ? filtered : derived)
-      } catch (err) {
+      } catch {
         console.warn('Kanban: usando colunas padrão')
         // Fallback para padrão
         setColumns([
@@ -82,12 +87,12 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
 
     loadColumns()
 
-    const handler = () => { loadColumns() }
-    window.addEventListener('settingsUpdated', handler as any)
-    window.addEventListener('boardChanged', handler as any)
+    const handler: EventListener = () => { loadColumns() }
+    window.addEventListener('settingsUpdated', handler)
+    window.addEventListener('boardChanged', handler)
     return () => {
-      window.removeEventListener('settingsUpdated', handler as any)
-      window.removeEventListener('boardChanged', handler as any)
+      window.removeEventListener('settingsUpdated', handler)
+      window.removeEventListener('boardChanged', handler)
     }
   }, [])
 
@@ -99,34 +104,11 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
     }, {} as Record<string, Ticket[]>)
   }, [tickets, columns])
 
-  const handleDragEnd = () => {}
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'Urgent':
-        return <ArrowUp className="w-3 h-3 text-red-500" />
-      case 'High':
-        return <ArrowUp className="w-3 h-3 text-orange-500" />
-      case 'Medium':
-        return <div className="w-3 h-3 bg-yellow-500 rounded-full" />
-      case 'Low':
-        return <ArrowDown className="w-3 h-3 text-green-500" />
-      default:
-        return null
-    }
-  }
-
+  void getPriorityColor
+  void getStatusColor
+ 
   // Sempre mostra colunas de boards, mesmo sem tickets
-
+ 
   // Componente Droppable apenas para a área de lista (evita cabeçalho interferir)
   const DroppableList = ({ column, children }: { column: Column, children: React.ReactNode }) => {
     const { setNodeRef, isOver } = useDroppable({ id: column.id })
@@ -158,20 +140,6 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
       contain: 'layout paint style'
     } as React.CSSProperties
 
-    const moveToCurrentBoard = async () => {
-      try {
-        const currentBoardId = localStorage.getItem('current_board_id')
-        if (!currentBoardId) {
-          console.warn('Nenhum board selecionado para mover o chamado.')
-          return
-        }
-        await apiFetch(`/tickets/${ticket.id}`, { method: 'PUT', body: JSON.stringify({ board_id: currentBoardId }) })
-        try { console.log('[Kanban] Ticket movido para board atual', { ticketId: ticket.id, boardId: currentBoardId }) } catch {}
-        
-      } catch (err) {
-        console.error('Erro ao mover chamado para o board atual:', err)
-      }
-    }
     return (
       <div
         key={ticket.id}
@@ -186,88 +154,34 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
         aria-label={`Chamado ${ticket.title} - Status ${columnTitle}`}
         tabIndex={0}
       >
-        {/* Cabeçalho do Card */}
-        <div className="flex items-start justify-between mb-2">
+        <div className="mb-3">
           <Link
             to={`/chamados/${ticket.id}`}
             draggable={false}
-            onClick={(e) => {
-              if (isDragging) {
-                e.preventDefault()
-              }
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault()
-            }}
-            className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors line-clamp-2 flex-1"
+            onClick={(e) => { if (isDragging) e.preventDefault() }}
+            onMouseDown={(e) => { e.preventDefault() }}
+            className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-snug"
             title={ticket.title}
           >
             {ticket.title}
           </Link>
-          <div className="flex items-center space-x-1 ml-2">
-            {getPriorityIcon(ticket.priority)}
-            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(ticket.priority)}`}>
-              {ticket.priority}
-            </span>
-            {getStatusStyle && (
-              <span className="px-2 py-1 text-xs font-semibold rounded-full border" style={getStatusStyle(ticket.status)}>
-                {ticket.status}
-              </span>
-            )}
+        </div>
+
+        <div className="mb-3">
+          <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+            Tipo
+          </div>
+          <div className="inline-flex max-w-full items-center px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-300">
+            <span className="truncate">{ticket.category}</span>
           </div>
         </div>
 
-        {/* ID e Categoria */}
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-            #{ticket.id.slice(0, 8)}
-          </span>
-          <span className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-            {ticket.category}
-          </span>
-        </div>
-
-        {/* Informações Adicionais */}
-        <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-          <div className="flex items-center space-x-1">
-            <Calendar className="w-3 h-3" />
-            <span>{formatDate(ticket.created_at)}</span>
+        <div className="mb-1">
+          <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+            Informações do solicitante
           </div>
-          {ticket.assigned_to && (
-            <div className="flex items-center space-x-1">
-              <User className="w-3 h-3" />
-              <span>{ticket.assigned_to?.name || ticket.assigned_to?.email}</span>
-            </div>
-          )}
-          {!ticket.board_id && (
-            <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-              <AlertCircle className="w-3 h-3" />
-              <span>Sem board</span>
-            </div>
-          )}
-        </div>
-
-        {/* Indicador de Drag */}
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-          <div className="flex justify-between items-center">
-            <div
-              className="flex space-x-1 cursor-grab active:cursor-grabbing"
-              title="Arraste para mover"
-            >
-              <div className="w-1 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
-              <div className="w-1 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
-              <div className="w-1 h-4 bg-gray-300 dark:bg-gray-600 rounded"></div>
-            </div>
-            <span className="text-xs text-gray-400 dark:text-gray-500">Arraste para mover</span>
-          </div>
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); moveToCurrentBoard() }}
-              className="text-xs px-2 py-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Mover p/ Board atual
-            </button>
+          <div className="text-sm text-gray-900 dark:text-gray-100">
+            {ticket.requester?.name || ticket.requester?.email || '-'}
           </div>
         </div>
       </div>
@@ -279,10 +193,8 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
     <DndContext
       sensors={sensors}
       collisionDetection={pointerWithin}
-      onDragStart={(evt) => {}}
-      onDragOver={(evt) => {
-        /* no-op to evitar re-renderizações durante o arraste */
-      }}
+      onDragStart={() => {}}
+      onDragOver={() => { void 0 }}
       onDragEnd={(evt) => {
         const id = String((evt?.active?.id ?? '') || '')
         const overId = String((evt?.over?.id ?? '') || '')
@@ -290,7 +202,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
         if (id && col) {
           (async () => {
             try {
-              const resp = await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify({ status: col.targetStatus }) })
+              await apiFetch(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify({ status: col.targetStatus }) })
             } catch (e) {
               console.warn('[Kanban] Falha ao persistir status via DnD, UI seguirá com callback:', e)
             } finally {
