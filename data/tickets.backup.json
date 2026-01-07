@@ -27596,25 +27596,7 @@
       }
     },
     "created_at": "2025-12-29T19:20:16.130Z",
-    "updated_at": "2025-12-29T19:20:16.130Z",
-    "resolved_at": null
-  },
-  {
-    "id": "3806d06f-3fca-46f3-a8c2-0fd29ef69e39",
-    "title": "teste",
-    "description": "testes\n\n---\nSolicitante: Luiz Felipe Reat dos Santos",
-    "category": "Hardware",
-    "priority": "Low",
-    "status": "In Progress",
-    "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
-    "requester_id": "public-submission",
-    "assigned_to_id": "09e54bc4-a039-4ad8-bd97-1e6f53ea9c3f",
-    "custom_fields": {
-      "attachments": [],
-      "name": "Luiz Felipe Reat dos Santos"
-    },
-    "created_at": "2025-12-30T14:47:38.945Z",
-    "updated_at": "2026-01-05T19:13:29.610Z",
+    "updated_at": "2026-01-07T15:32:22.822Z",
     "resolved_at": null
   }
 ]
