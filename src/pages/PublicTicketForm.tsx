@@ -18,6 +18,8 @@ export default function PublicTicketForm() {
   const [orderedFields, setOrderedFields] = useState<FormField[]>([])
   const [publicUserNames, setPublicUserNames] = useState<string[]>([])
   const [attachments, setAttachments] = useState<string[]>([])
+  const [rawFields, setRawFields] = useState<FormField[]>([])
+  const [formOrder, setFormOrder] = useState<string[]>([])
   const formatPhone = (v: string) => {
     const d = String(v || '').replace(/\D+/g, '').slice(0, 11)
     if (d.length <= 2) return d
@@ -61,6 +63,8 @@ export default function PublicTicketForm() {
         const byName: Record<string, Partial<FormField>> = {}
         fields.forEach((f: FormField) => { byName[f.name] = f })
         setFieldConfigs(byName)
+        setRawFields(fields)
+
         const customs = fields.filter((f: FormField) => (f.isActive ?? true) && (f.visiblePublic ?? true) && !['name','email','title','description','category','priority','assigned_to_id','requester_id'].includes(f.name))
         setCustomFields(customs)
         setCustomValues(prev => {
@@ -78,42 +82,53 @@ export default function PublicTicketForm() {
             setPublicUserNames(list.map(u => (u.name || u.email || '')).filter(Boolean))
           }
         } catch {}
-        const formOrder: string[] = Array.isArray((json as any)?.data?.formOrder) ? (((json as any).data.formOrder as string[]).map(String)) : []
-        const defaultCategories = ['Hardware','Software','Rede','Email','Sistema','Outro']
-        const defaultPriorities = ['Low','Medium','High','Urgent']
-        const builtins: FormField[] = [
-          { id: 'builtin:name', name: 'name', label: byName['name']?.label || 'Seu nome', type: 'text', required: Boolean(byName['name']?.required ?? true), order: 0, isActive: (byName['name']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: false },
-          { id: 'builtin:email', name: 'email', label: byName['email']?.label || 'Seu email', type: 'email', required: Boolean(byName['email']?.required ?? true), order: 0, isActive: (byName['email']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: false },
-          { id: 'builtin:title', name: 'title', label: byName['title']?.label || 'Título do Chamado', type: 'text', required: Boolean(byName['title']?.required ?? true), order: 1, isActive: (byName['title']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
-          { id: 'builtin:description', name: 'description', label: byName['description']?.label || 'Descrição Detalhada', type: 'textarea', required: Boolean(byName['description']?.required ?? true), order: 2, isActive: (byName['description']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
-          { id: 'builtin:category', name: 'category', label: byName['category']?.label || 'Categoria', type: 'select', required: Boolean(byName['category']?.required ?? true), options: (Array.isArray(byName['category']?.options) && byName['category']?.options?.length ? (byName['category']!.options as string[]) : defaultCategories), order: 3, isActive: (byName['category']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
-          { id: 'builtin:priority', name: 'priority', label: byName['priority']?.label || 'Prioridade', type: 'select', required: Boolean(byName['priority']?.required ?? true), options: (Array.isArray(byName['priority']?.options) && byName['priority']?.options?.length ? (byName['priority']!.options as string[]) : defaultPriorities), order: 4, isActive: (byName['priority']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
-        ]
-        const merged: FormField[] = builtins.map(b => {
-          const found = fields.find(f => f.name === b.name)
-          return found ? { ...b, ...found } : b
-        }).concat(fields.filter(f => !builtins.some(b => b.name === f.name)))
-        const byId: Record<string, FormField> = {}
-        merged.forEach(f => { byId[f.id] = f })
-        let ordered: FormField[] = merged
-        if (formOrder.length) {
-          const orderSet = new Set(formOrder)
-          const front = formOrder.map(id => byId[id]).filter(Boolean) as FormField[]
-          const rest = merged.filter(f => !orderSet.has(f.id))
-          ordered = front.concat(rest)
-        } else {
-          ordered = merged.sort((a, b) => ((a as any).order || 0) - ((b as any).order || 0))
-        }
-        const withDynamic = ordered.map(f => {
-          if (f.type === 'select' && (f as any).optionsFromUsers) {
-            return { ...f, options: publicUserNames.length ? publicUserNames : (f.options || []) }
-          }
-          return f
-        })
-        setOrderedFields(withDynamic.filter(f => (f.isActive ?? true) && (f.visiblePublic ?? true) && f.name !== 'email'))
+        const fOrder: string[] = Array.isArray((json as any)?.data?.formOrder) ? (((json as any).data.formOrder as string[]).map(String)) : []
+        setFormOrder(fOrder)
       } catch (err) { void err }
     })()
   }, [])
+
+  useEffect(() => {
+    const byName: Record<string, Partial<FormField>> = {}
+    rawFields.forEach((f: FormField) => { byName[f.name] = f })
+    
+    const defaultCategories = ['Hardware','Software','Rede','Email','Sistema','Outro']
+    const defaultPriorities = ['Low','Medium','High','Urgent']
+    const builtins: FormField[] = [
+      { id: 'builtin:name', name: 'name', label: byName['name']?.label || 'Seu nome', type: 'select', optionsFromUsers: true, required: Boolean(byName['name']?.required ?? true), order: 0, isActive: (byName['name']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: false },
+      { id: 'builtin:email', name: 'email', label: byName['email']?.label || 'Seu email', type: 'email', required: Boolean(byName['email']?.required ?? true), order: 0, isActive: (byName['email']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: false },
+      { id: 'builtin:title', name: 'title', label: byName['title']?.label || 'Título do Chamado', type: 'text', required: Boolean(byName['title']?.required ?? true), order: 1, isActive: (byName['title']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+      { id: 'builtin:description', name: 'description', label: byName['description']?.label || 'Descrição Detalhada', type: 'textarea', required: Boolean(byName['description']?.required ?? true), order: 2, isActive: (byName['description']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+      { id: 'builtin:category', name: 'category', label: byName['category']?.label || 'Categoria', type: 'select', required: Boolean(byName['category']?.required ?? true), options: (Array.isArray(byName['category']?.options) && byName['category']?.options?.length ? (byName['category']!.options as string[]) : defaultCategories), order: 3, isActive: (byName['category']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+      { id: 'builtin:priority', name: 'priority', label: byName['priority']?.label || 'Prioridade', type: 'select', required: Boolean(byName['priority']?.required ?? true), options: (Array.isArray(byName['priority']?.options) && byName['priority']?.options?.length ? (byName['priority']!.options as string[]) : defaultPriorities), order: 4, isActive: (byName['priority']?.isActive ?? true) as boolean, visiblePublic: true, visibleInternal: true },
+    ]
+    const merged: FormField[] = builtins.map(b => {
+      const found = rawFields.find(f => f.name === b.name)
+      if (b.name === 'name') {
+        return found ? { ...b, ...found, type: 'select' as const, optionsFromUsers: true } : b
+      }
+      return found ? { ...b, ...found } : b
+    }).concat(rawFields.filter(f => !builtins.some(b => b.name === f.name)))
+    
+    const byId: Record<string, FormField> = {}
+    merged.forEach(f => { byId[f.id] = f })
+    let ordered: FormField[] = merged
+    if (formOrder.length) {
+      const orderSet = new Set(formOrder)
+      const front = formOrder.map(id => byId[id]).filter(Boolean) as FormField[]
+      const rest = merged.filter(f => !orderSet.has(f.id))
+      ordered = front.concat(rest)
+    } else {
+      ordered = merged.sort((a, b) => ((a as any).order || 0) - ((b as any).order || 0))
+    }
+    const withDynamic = ordered.map(f => {
+      if (f.type === 'select' && (f as any).optionsFromUsers) {
+        return { ...f, options: publicUserNames.length ? publicUserNames : (f.options || []) }
+      }
+      return f
+    })
+    setOrderedFields(withDynamic.filter(f => (f.isActive ?? true) && (f.visiblePublic ?? true) && f.name !== 'email'))
+  }, [rawFields, formOrder, publicUserNames])
 
   
 
