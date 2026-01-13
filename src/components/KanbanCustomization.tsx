@@ -23,7 +23,8 @@ import {
   CheckCircle,
   AlertCircle,
   Circle,
-  Package
+  Package,
+  Archive
 } from 'lucide-react'
 
 interface KanbanColumn {
@@ -405,6 +406,7 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
                 { value: 'Hash', label: 'Hash' },
                 { value: 'Settings', label: 'Configurações' },
                 { value: 'Package', label: 'Pacote' },
+                { value: 'Archive', label: 'Arquivo' },
                 { value: 'Circle', label: 'Círculo' },
                 { value: 'Layout', label: 'Layout' },
               ].map((opt) => (
@@ -424,6 +426,7 @@ const sanitizeColumn = (raw: any): KanbanColumn => ({
               {formData.icon === 'Hash' && <Hash className="w-4 h-4" />}
               {formData.icon === 'Settings' && <Settings className="w-4 h-4" />}
               {formData.icon === 'Package' && <Package className="w-4 h-4" />}
+              {formData.icon === 'Archive' && <Archive className="w-4 h-4" />}
               {formData.icon === 'Circle' && <Circle className="w-4 h-4" />}
               {formData.icon === 'Layout' && <Layout className="w-4 h-4" />}
             </div>

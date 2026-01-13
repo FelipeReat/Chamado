@@ -658,6 +658,15 @@ router.post('/settings/reset', requireAuth, requireAdmin, async (req, res) => {
         order: 3,
         isDefault: true,
         isActive: true
+      },
+      {
+        id: 'archived',
+        name: 'Arquivado',
+        color: '#9ca3af',
+        icon: 'Archive',
+        order: 5,
+        isDefault: true,
+        isActive: true
       }
     ]
     const defaultKanbanColumns = [
@@ -693,6 +702,17 @@ router.post('/settings/reset', requireAuth, requireAdmin, async (req, res) => {
         showDueDate: false,
         isActive: true,
         order: 3
+      },
+      {
+        id: 'archived',
+        statusId: 'archived',
+        title: 'Arquivado',
+        wipLimit: null,
+        showPriority: false,
+        showAssignee: false,
+        showDueDate: false,
+        isActive: true,
+        order: 5
       }
     ]
     

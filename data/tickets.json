@@ -27568,35 +27568,5 @@
     "created_at": "2025-12-29T19:20:15.753Z",
     "updated_at": "2025-12-29T19:20:15.753Z",
     "resolved_at": null
-  },
-  {
-    "id": "411643a4-3a00-4ec4-9001-71624fc14c1b",
-    "title": "⁠movimentar impressora",
-    "description": "",
-    "category": "Other",
-    "priority": "Medium",
-    "status": "Resolved",
-    "board_id": "22611447-d47f-418f-baf2-f657d9da982d",
-    "requester_id": "22de4a88-d112-4c89-9895-ca158c19edaa",
-    "assigned_to_id": null,
-    "custom_fields": {
-      "import_source": "excel",
-      "import_original": {
-        "Título": "⁠movimentar impressora",
-        "Fase atual": "Concluído",
-        "Etiquetas": "Solicitação",
-        "Criador": "Felipe Reat",
-        "Responsáveis": "Felipe Reat",
-        "Finalizado em": "2025-11-06T12:06:06.583Z",
-        "Criado em": "2025-11-06T12:04:33.260Z",
-        "Atualizado em": "2025-12-17T14:50:52.478Z",
-        "Responsável": "Felipe Reat",
-        "Primeira vez que entrou na fase Concluído": "2025-11-06T12:06:06.646Z",
-        "Tempo total na fase Concluído (dias)": 46.139931
-      }
-    },
-    "created_at": "2025-12-29T19:20:16.130Z",
-    "updated_at": "2026-01-07T15:32:23.225Z",
-    "resolved_at": null
   }
 ]

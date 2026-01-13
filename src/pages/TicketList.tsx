@@ -31,7 +31,8 @@ export default function TicketList() {
 
   const categories = ['Hardware', 'Software', 'Rede', 'Email', 'Sistema', 'Outro']
   const priorities = ['Low', 'Medium', 'High', 'Urgent']
-  const [statusOptions, setStatusOptions] = useState<string[]>([])
+  interface StatusOption { label: string; value: string }
+  const [statusOptions, setStatusOptions] = useState<StatusOption[]>([])
   const [settings, setSettings] = useState<Record<string, unknown> | null>(null)
   const [showImportModal, setShowImportModal] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -46,9 +47,9 @@ export default function TicketList() {
       const qs = boardId ? `?board_id=${encodeURIComponent(boardId)}` : ''
       const resp = await apiFetch(`/tickets${qs}`)
       let data: ListTicket[] = (resp.data || []) as ListTicket[]
-      if (filters.status) data = data.filter((t) => t.status === filters.status)
-      if (filters.priority) data = data.filter((t) => t.priority === filters.priority)
-      if (filters.category) data = data.filter((t) => t.category === filters.category)
+      if (filters.status) data = data.filter((t) => parseStatus(t.status) === filters.status)
+      if (filters.priority) data = data.filter((t) => parsePriority(t.priority) === filters.priority)
+      if (filters.category) data = data.filter((t) => parseCategory(t.category) === filters.category)
       if (filters.assigned_to) data = data.filter((t) => t.assigned_to_id === filters.assigned_to)
       const currentUserId = (user as unknown as { id?: string } | null)?.id
       if (!(isAdmin || isTechnician)) data = data.filter((t) => t.requester_id === currentUserId || t.assigned_to_id === currentUserId)
@@ -103,7 +104,14 @@ export default function TicketList() {
         const s = await apiFetch('/settings')
         const raw: unknown = s
         const list = Array.isArray((raw as { statuses?: StatusSetting[] }).statuses) ? ((raw as { statuses?: StatusSetting[] }).statuses as StatusSetting[]) : []
-        setStatusOptions(list.filter((x) => x.isActive).map((x) => x.name))
+        const options = list.filter((x) => x.isActive).map((x) => ({
+          label: x.name,
+          value: x.id === 'open' ? 'Open' : 
+                 x.id === 'in-progress' ? 'In Progress' :
+                 x.id === 'resolved' ? 'Resolved' :
+                 x.id === 'archived' ? 'Archived' : x.id
+        }))
+        setStatusOptions(options)
         setSettings(s)
       } catch (err) { void err }
     })()
@@ -213,6 +221,7 @@ export default function TicketList() {
     if (norm === 'open' || norm === 'aberto' || norm.includes('a fazer') || norm.includes('todo') || norm.includes('to do') || norm.includes('backlog') || norm.includes('pendente')) return 'Open'
     if (norm.includes('progress') || norm.includes('andamento') || norm.includes('fazendo') || norm.includes('doing') || norm.includes('em progresso') || norm.includes('iniciado')) return 'In Progress'
     if (norm.includes('resolved') || norm.includes('resolvido') || norm.includes('concluido') || norm.includes('concluído') || norm.includes('finalizado') || norm.includes('done')) return 'Resolved'
+    if (norm.includes('archiv') || norm.includes('arquiv')) return 'Archived'
     return 'Open'
   }
 
@@ -378,6 +387,7 @@ export default function TicketList() {
       case 'Open': return 'Aberto'
       case 'In Progress': return 'Em Andamento'
       case 'Resolved': return 'Resolvido'
+      case 'Archived': return 'Arquivado'
       default: return status
     }
   }
@@ -471,9 +481,9 @@ export default function TicketList() {
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100"
                 >
                   <option value="">Todos</option>
-                  {statusOptions.map(status => (
-                    <option key={status} value={status}>
-                      {getStatusLabel(status)}
+                  {statusOptions.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
                     </option>
                   ))}
                 </select>
@@ -641,7 +651,8 @@ export default function TicketList() {
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border`} style={getStatusStyle(ticket.status)}>
                   {ticket.status === 'Open' ? 'Aberto' :
                    ticket.status === 'In Progress' ? 'Em Andamento' :
-                   ticket.status === 'Resolved' ? 'Resolvido' : 'Fechado'}
+                   ticket.status === 'Resolved' ? 'Resolvido' : 
+                   ticket.status === 'Archived' ? 'Arquivado' : 'Fechado'}
                 </span>
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                   ticket.priority === 'Urgent' ? 'bg-red-100 text-red-800' :

@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, Clock } from 'lucide-react'
+import { AlertCircle, CheckCircle, Clock, Archive } from 'lucide-react'
 import { BarChart3, Users, Calendar, Star, FileText, Hash, Settings, Package, Circle, Layout } from 'lucide-react'
 
 export function normalizeStatusKey(label: string): string {
@@ -7,6 +7,7 @@ export function normalizeStatusKey(label: string): string {
   if (key.includes('progress') || key.includes('andament')) return 'in-progress'
   if (key.includes('resolved') || key.includes('resolvido')) return 'resolved'
   if (key.includes('open') || key.includes('aberto')) return 'open'
+  if (key.includes('archiv') || key.includes('arquiv')) return 'archived'
   // Allow custom statuses to pass through
   return key.replace(/\s+/g, '-')
 }
@@ -16,6 +17,7 @@ export function statusIdToLabel(id: string): string {
     case 'open': return 'Open'
     case 'in-progress': return 'In Progress'
     case 'resolved': return 'Resolved'
+    case 'archived': return 'Archived'
     default: return id
   }
 }
@@ -25,6 +27,7 @@ export function getIconForStatusId(id: string) {
     case 'open': return <Clock className="w-4 h-4" />
     case 'in-progress': return <AlertCircle className="w-4 h-4" />
     case 'resolved': return <CheckCircle className="w-4 h-4" />
+    case 'archived': return <Archive className="w-4 h-4" />
     default: return <Clock className="w-4 h-4" />
   }
 }
@@ -35,6 +38,7 @@ function getIconByName(name?: string) {
     Clock: <Clock className="w-4 h-4" />,
     AlertCircle: <AlertCircle className="w-4 h-4" />,
     CheckCircle: <CheckCircle className="w-4 h-4" />,
+    Archive: <Archive className="w-4 h-4" />,
     BarChart3: <BarChart3 className="w-4 h-4" />,
     Users: <Users className="w-4 h-4" />,
     Calendar: <Calendar className="w-4 h-4" />,

@@ -35,6 +35,15 @@
       "order": 4,
       "id": "1764681264678",
       "isDefault": false
+    },
+    {
+      "id": "archived",
+      "name": "Arquivado",
+      "color": "#9ca3af",
+      "icon": "Archive",
+      "order": 5,
+      "isDefault": true,
+      "isActive": true
     }
   ],
   "formFields": [
@@ -143,6 +152,17 @@
       "order": 4,
       "isActive": true,
       "boardId": ""
+    },
+    {
+      "id": "archived",
+      "statusId": "archived",
+      "title": "Arquivado",
+      "wipLimit": null,
+      "showPriority": false,
+      "showAssignee": false,
+      "showDueDate": false,
+      "isActive": true,
+      "order": 5
     }
   ],
   "permissions": {},

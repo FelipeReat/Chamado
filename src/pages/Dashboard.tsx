@@ -7,7 +7,7 @@ import TicketListView from '../components/TicketListView'
 import TicketKanbanView from '../components/TicketKanbanView'
 import { statusStyleFromSettings } from '../lib/statusColors'
 import ViewSelector, { useViewPreferences } from '../components/ViewSelector'
-import { PlusCircle, Clock, CheckCircle, AlertCircle, TrendingUp, Users, List } from 'lucide-react'
+import { PlusCircle, Clock, CheckCircle, AlertCircle, TrendingUp, Users, List, Archive } from 'lucide-react'
 
 export default function Dashboard() {
   const { user, isAdmin, isTechnician } = useAuth()
@@ -25,6 +25,7 @@ export default function Dashboard() {
     open: 0,
     inProgress: 0,
     resolved: 0,
+    archived: 0,
     thisMonth: 0
   })
 
@@ -55,6 +56,7 @@ export default function Dashboard() {
       const open = filtered.filter(t => t.status === 'Open').length || 0
       const inProgress = filtered.filter(t => t.status === 'In Progress').length || 0
       const resolved = filtered.filter(t => t.status === 'Resolved').length || 0
+      const archived = filtered.filter(t => t.status === 'Archived').length || 0
       
       // This month stats
       const now = new Date()
@@ -68,6 +70,7 @@ export default function Dashboard() {
         open,
         inProgress,
         resolved,
+        archived,
         thisMonth
       })
 

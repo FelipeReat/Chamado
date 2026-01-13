@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { type Ticket } from '../lib/supabase'
 import { apiFetch } from '../lib/api'
 import { deriveColumnsFromSettings, normalizeStatusKey, statusIdToLabel } from '../lib/kanbanMapping'
-import { AlertCircle, Clock, CheckCircle } from 'lucide-react'
+import { AlertCircle, Clock, CheckCircle, Archive } from 'lucide-react'
 
 interface TicketKanbanViewProps {
   tickets: Ticket[]
@@ -39,6 +39,7 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             { id: 'open', title: 'Abertos', statusIds: ['open'], targetStatus: statusIdToLabel('open'), icon: <Clock className="w-4 h-4" />, color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' },
             { id: 'in-progress', title: 'Em Andamento', statusIds: ['in-progress'], targetStatus: statusIdToLabel('in-progress'), icon: <AlertCircle className="w-4 h-4" />, color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' },
             { id: 'resolved', title: 'Resolvidos', statusIds: ['resolved'], targetStatus: statusIdToLabel('resolved'), icon: <CheckCircle className="w-4 h-4" />, color: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' },
+            { id: 'archived', title: 'Arquivado', statusIds: ['archived'], targetStatus: statusIdToLabel('archived'), icon: <Archive className="w-4 h-4" />, color: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800' },
           ])
           return
         }
@@ -80,6 +81,14 @@ export default function TicketKanbanView({ tickets, getPriorityColor, getStatusC
             targetStatus: statusIdToLabel('resolved'),
             icon: <CheckCircle className="w-4 h-4" />,
             color: '#10B981'
+          },
+          {
+            id: 'archived',
+            title: 'Arquivado',
+            statusIds: ['archived'],
+            targetStatus: statusIdToLabel('archived'),
+            icon: <Archive className="w-4 h-4" />,
+            color: '#9CA3AF'
           }
         ])
       }
